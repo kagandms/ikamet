@@ -249,14 +249,73 @@ document.addEventListener('DOMContentLoaded', () => {
             width = MAX_WIDTH;
             height = height * ratio;
         }
+        
+        // Ensure integer dimensions
+        width = Math.floor(width);
+        height = Math.floor(height);
 
         canvas.width = width;
         canvas.height = height;
 
-        // Draw original image (No custom contrast/sharpen - let Tesseract handle it)
+        // Draw original image
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Start OCR directly passing the canvas
+        // Apply Bradley-Roth Adaptive Thresholding (to defeat shadows and preserve thin text)
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const intImg = new Int32Array(width * height);
+        const S = Math.floor(width / 16); // Window size (approx 1/16th of width)
+        const s2 = Math.floor(S / 2);
+        const T = 0.15; // Threshold percentage
+        
+        // Convert to grayscale
+        const gray = new Uint8Array(width * height);
+        for (let i = 0; i < width * height; i++) {
+            gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+        }
+        
+        // Calculate integral image
+        for (let i = 0; i < width; i++) {
+            let sum = 0;
+            for (let j = 0; j < height; j++) {
+                const index = j * width + i;
+                sum += gray[index];
+                if (i === 0) intImg[index] = sum;
+                else intImg[index] = intImg[index - 1] + sum;
+            }
+        }
+        
+        // Apply threshold
+        for (let i = 0; i < width; i++) {
+            for (let j = 0; j < height; j++) {
+                const index = j * width + i;
+                
+                const x1 = Math.max(i - s2, 0);
+                const x2 = Math.min(i + s2, width - 1);
+                const y1 = Math.max(j - s2, 0);
+                const y2 = Math.min(j + s2, height - 1);
+                
+                const count = (x2 - x1) * (y2 - y1);
+                let sum = intImg[y2 * width + x2] - (y1 > 0 ? intImg[(y1-1) * width + x2] : 0) - (x1 > 0 ? intImg[y2 * width + (x1-1)] : 0) + ((x1 > 0 && y1 > 0) ? intImg[(y1-1) * width + (x1-1)] : 0);
+                
+                if (gray[index] * count <= sum * (1.0 - T)) {
+                    // Black
+                    data[index*4] = 0;
+                    data[index*4+1] = 0;
+                    data[index*4+2] = 0;
+                } else {
+                    // White
+                    data[index*4] = 255;
+                    data[index*4+1] = 255;
+                    data[index*4+2] = 255;
+                }
+                data[index*4+3] = 255; // Alpha
+            }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Start OCR directly passing the binarized canvas
         runOCR(canvas);
     }
 
