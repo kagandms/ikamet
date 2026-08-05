@@ -264,9 +264,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
         const intImg = new Int32Array(width * height);
-        const S = Math.floor(width / 16); // Window size (approx 1/16th of width)
+        const S = Math.floor(width / 8); // Larger Window size
         const s2 = Math.floor(S / 2);
-        const T = 0.15; // Threshold percentage
+        const T = 0.10; // Lower Threshold percentage to make text darker (survive better)
         
         // Convert to grayscale
         const gray = new Uint8Array(width * height);
@@ -314,6 +314,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         ctx.putImageData(imageData, 0, 0);
+        
+        // --- DEBUG: Show the binarized image on the screen ---
+        const existingDebug = document.getElementById('debug-canvas');
+        if (existingDebug) existingDebug.remove();
+        canvas.id = 'debug-canvas';
+        canvas.style.width = '100%';
+        canvas.style.marginTop = '20px';
+        canvas.style.border = '2px solid red';
+        const debugContainer = document.querySelector('.ocr-debug');
+        if (debugContainer) debugContainer.appendChild(canvas);
         
         // Start OCR directly passing the binarized canvas
         runOCR(canvas);
