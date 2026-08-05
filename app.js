@@ -239,98 +239,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Resize if width > 4000px (Keep resolution high to prevent text fusing with table borders)
+        // Resize if width > 3000px
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 4000;
+        const MAX_WIDTH = 3000;
         
         if (width > MAX_WIDTH) {
             const ratio = MAX_WIDTH / width;
             width = MAX_WIDTH;
             height = height * ratio;
         }
-        
-        // Ensure integer dimensions
-        width = Math.floor(width);
-        height = Math.floor(height);
 
         canvas.width = width;
         canvas.height = height;
 
-        // Draw original image natively without blur to prevent bleeding
+        // Draw image
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Apply Bradley-Roth Adaptive Thresholding (to defeat shadows and preserve thin text)
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const data = imageData.data;
-        const intImg = new Int32Array(width * height);
-        const S = Math.floor(width / 8); // Larger Window size
-        const s2 = Math.floor(S / 2);
-        const T = 0.10; // Lower Threshold percentage to make text darker (survive better)
-        
-        // Convert to grayscale
-        const gray = new Uint8Array(width * height);
-        for (let i = 0; i < width * height; i++) {
-            gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
-        }
-        
-        // Calculate integral image directly from gray
-        for (let i = 0; i < width; i++) {
-            let sum = 0;
-            for (let j = 0; j < height; j++) {
-                const index = j * width + i;
-                sum += gray[index];
-                if (i === 0) intImg[index] = sum;
-                else intImg[index] = intImg[index - 1] + sum;
-            }
-        }
-        
-        // Apply threshold using gray image
-        for (let i = 0; i < width; i++) {
-            for (let j = 0; j < height; j++) {
-                const index = j * width + i;
-                
-                const x1 = Math.max(i - s2, 0);
-                const x2 = Math.min(i + s2, width - 1);
-                const y1 = Math.max(j - s2, 0);
-                const y2 = Math.min(j + s2, height - 1);
-                
-                const count = (x2 - x1) * (y2 - y1);
-                let sum = intImg[y2 * width + x2] - (y1 > 0 ? intImg[(y1-1) * width + x2] : 0) - (x1 > 0 ? intImg[y2 * width + (x1-1)] : 0) + ((x1 > 0 && y1 > 0) ? intImg[(y1-1) * width + (x1-1)] : 0);
-                
-                if (gray[index] * count <= sum * (1.0 - T)) {
-                    // Black
-                    data[index*4] = 0;
-                    data[index*4+1] = 0;
-                    data[index*4+2] = 0;
-                } else {
-                    // White
-                    data[index*4] = 255;
-                    data[index*4+1] = 255;
-                    data[index*4+2] = 255;
-                }
-                data[index*4+3] = 255; // Alpha
-            }
-        }
-        
-        ctx.putImageData(imageData, 0, 0);
-        
-        // --- DEBUG: Show the binarized image on the screen ---
-        const existingDebug = document.getElementById('debug-canvas');
-        if (existingDebug) existingDebug.remove();
-        canvas.id = 'debug-canvas';
-        canvas.style.width = '100%';
-        canvas.style.marginTop = '20px';
-        canvas.style.border = '2px solid red';
-        const debugContainer = document.querySelector('.ocr-debug');
-        if (debugContainer) debugContainer.appendChild(canvas);
-        
-        // Start OCR directly passing the binarized canvas
-        runOCR(canvas);
+        // Start OCR directly (Tesseract handles grayscale and Otsu binarization natively and much better)
+        runOCR(canvas.toDataURL('image/jpeg', 0.9));
     }
 
     // --- OCR Processing ---
-    async function runOCR(imageSource) {
+    async function runOCR(imageDataUrl) {
         try {
             if (progressBar) progressBar.style.width = '0%';
             if (progressText) progressText.innerText = 'OCR başlatılıyor...';
@@ -338,8 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait a moment for UI to update
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Use tur+eng to help with foreign names, disable dictionary bias
-            const worker = await Tesseract.createWorker(['tur', 'eng'], 1, {
+            const worker = await Tesseract.createWorker('tur', 1, {
                 logger: m => {
                     if (m.status === 'recognizing text') {
                         const p = Math.round(m.progress * 100);
@@ -349,14 +279,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 6: Single uniform block (best for forms)
+            // PSM 6: Assume a single uniform block of text. Great for forms and tables.
+            // PSM 4: Assume a single column of text of variable sizes.
             await worker.setParameters({
-                tessedit_pageseg_mode: '6',
-                load_system_dawg: '0',
-                load_freq_dawg: '0'
+                tessedit_pageseg_mode: '6'
             });
 
-            const result = await worker.recognize(imageSource);
+            const result = await worker.recognize(imageDataUrl);
             await worker.terminate();
 
             const text = result.data.text;
@@ -487,54 +416,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ============================================
-        // 2. SOYADI — multi-word, ultra-robust against collapsed columns
+        // 2. SOYADI — multi-word support
         // ============================================
-        const extractNameFromLines = (startIndex, labelRegex, excludeRegex) => {
-            for (let i = startIndex; i < lines.length; i++) {
-                const line = lines[i];
-                if (labelRegex.test(line) && (!excludeRegex || !excludeRegex.test(line))) {
-                    // Try to extract from the SAME line first (if columns collapsed)
-                    let words = line.split(/[\s,;:]+/).filter(w => w.length > 0);
-                    let nameWords = [];
-                    for (let w of words) {
-                        if (formLabels.test(w)) continue; // skip labels like 'Surname', 'Other', etc.
-                        if (w.length >= 2 && (w.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= Math.max(1, w.length / 3)) {
-                            // Fix common OCR errors on touching characters
-                            let fixedW = w.replace(/^[iİl!|1]vummer/i, 'HUMMET');
-                            fixedW = fixedW.replace(/^sven/i, 'AYJEMAL');
-                            nameWords.push(fixedW.toUpperCase());
-                        }
-                    }
-                    if (nameWords.length > 0) return nameWords.join(' ');
-                    
-                    // If not on same line, check next 2 lines
-                    for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-                        words = lines[j].split(/[\s,;:]+/).filter(w => w.length > 0);
-                        nameWords = [];
-                        let foundLabel = false;
-                        for (let w of words) {
-                            if (formLabels.test(w)) { foundLabel = true; continue; }
-                            if (w.length >= 2 && (w.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= Math.max(1, w.length / 3)) {
-                                let fixedW = w.replace(/^[iİl!|1]vummer/i, 'HUMMET');
-                                fixedW = fixedW.replace(/^sven/i, 'AYJEMAL');
-                                nameWords.push(fixedW.toUpperCase());
-                            }
-                        }
-                        if (nameWords.length > 0) return nameWords.join(' ');
-                        if (foundLabel && words.length > 0) break; // Reached next field
-                    }
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (/\bSoyad[ıi]\b/i.test(line) && !/[öÖ]nceki/i.test(line)) {
+                const m = line.match(/\bSoyad[ıi]\b\s*(.*)/i);
+                const afterLabel = m ? m[1] : '';
+                const cleaned = afterLabel.replace(/^\/?\.?\s*Surname\s*/i, '');
+                const name = grabName(cleaned);
+                if (name.length >= 2) { extracted.soyadi = name; break; }
+
+                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+                    if (/^\/?\.?\s*Surname\s*$/i.test(lines[j])) continue;
+                    const nc = lines[j].replace(/^\s*\/?\.?\s*Surname\s*/i, '');
+                    const nn = grabName(nc);
+                    if (nn.length >= 2) { extracted.soyadi = nn; break; }
                     break;
                 }
+                break;
             }
-            return '';
-        };
-
-        extracted.soyadi = extractNameFromLines(0, /Soyad[ıi]?|Surname|Sumame/i, /[öÖ]nceki|Previous/i);
+        }
 
         // ============================================
         // 3. ADI — multi-word, excludes Baba/Anne/Soy
         // ============================================
-        extracted.adi = extractNameFromLines(0, /\bAd[ıi]\b|\bName\b/i, /baba|anne|soyad|[öÖ]nceki|Father|Mother|Previous/i);
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (/\bAd[ıi]\b/i.test(line) && !/baba|anne|soyad|[öÖ]nceki/i.test(line)) {
+                const m = line.match(/\bAd[ıi]\b\s*(.*)/i);
+                const afterLabel = m ? m[1] : '';
+                const cleaned = afterLabel.replace(/^\/?\.?\s*Name\s*/i, '');
+                const name = grabName(cleaned);
+                if (name.length >= 2) { extracted.adi = name; break; }
+
+                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+                    if (/^\/?\.?\s*Name\s*$/i.test(lines[j])) continue;
+                    const nc = lines[j].replace(/^\s*\/?\.?\s*Name\s*/i, '');
+                    const nn = grabName(nc);
+                    if (nn.length >= 2) { extracted.adi = nn; break; }
+                    break;
+                }
+                break;
+            }
+        }
 
         // Prevent duplicate
         if (extracted.adi && extracted.adi === extracted.soyadi) {
