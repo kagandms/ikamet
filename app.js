@@ -274,18 +274,31 @@ document.addEventListener('DOMContentLoaded', () => {
             gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
         }
         
-        // Calculate integral image
+        // Apply 3x3 Box Blur to connect gaps in thermal/dot-matrix text
+        const blurred = new Uint8Array(width * height);
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const idx = y * width + x;
+                blurred[idx] = (
+                    gray[idx - width - 1] + gray[idx - width] + gray[idx - width + 1] +
+                    gray[idx - 1]         + gray[idx]         + gray[idx + 1] +
+                    gray[idx + width - 1] + gray[idx + width] + gray[idx + width + 1]
+                ) / 9;
+            }
+        }
+        
+        // Calculate integral image using blurred image
         for (let i = 0; i < width; i++) {
             let sum = 0;
             for (let j = 0; j < height; j++) {
                 const index = j * width + i;
-                sum += gray[index];
+                sum += blurred[index];
                 if (i === 0) intImg[index] = sum;
                 else intImg[index] = intImg[index - 1] + sum;
             }
         }
         
-        // Apply threshold
+        // Apply threshold using blurred image
         for (let i = 0; i < width; i++) {
             for (let j = 0; j < height; j++) {
                 const index = j * width + i;
@@ -298,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const count = (x2 - x1) * (y2 - y1);
                 let sum = intImg[y2 * width + x2] - (y1 > 0 ? intImg[(y1-1) * width + x2] : 0) - (x1 > 0 ? intImg[y2 * width + (x1-1)] : 0) + ((x1 > 0 && y1 > 0) ? intImg[(y1-1) * width + (x1-1)] : 0);
                 
-                if (gray[index] * count <= sum * (1.0 - T)) {
+                if (blurred[index] * count <= sum * (1.0 - T)) {
                     // Black
                     data[index*4] = 0;
                     data[index*4+1] = 0;
