@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (uploadZone) {
         uploadZone.addEventListener('click', (e) => {
             if (e.target !== cameraBtn) {
+                fileInput.removeAttribute('capture');
                 fileInput.click();
             }
         });
