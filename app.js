@@ -314,43 +314,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 data[index*4+3] = 255; // Alpha
             }
         }
-
-        // --- LINE REMOVAL ALGORITHM ---
-        // Erase long horizontal and vertical lines (table borders) so Tesseract doesn't mistake text for graphics
-        // Horizontal
-        for (let y = 0; y < height; y++) {
-            let run = 0;
-            for (let x = 0; x < width; x++) {
-                const idx = (y * width + x) * 4;
-                if (data[idx] === 0) run++;
-                else {
-                    if (run > 80) { // If continuous black pixels > 80, it's a line
-                        for (let k = 1; k <= run; k++) {
-                            const eraseIdx = (y * width + (x - k)) * 4;
-                            data[eraseIdx] = 255; data[eraseIdx+1] = 255; data[eraseIdx+2] = 255;
-                        }
-                    }
-                    run = 0;
-                }
-            }
-        }
-        // Vertical
-        for (let x = 0; x < width; x++) {
-            let run = 0;
-            for (let y = 0; y < height; y++) {
-                const idx = (y * width + x) * 4;
-                if (data[idx] === 0) run++;
-                else {
-                    if (run > 80) {
-                        for (let k = 1; k <= run; k++) {
-                            const eraseIdx = ((y - k) * width + x) * 4;
-                            data[eraseIdx] = 255; data[eraseIdx+1] = 255; data[eraseIdx+2] = 255;
-                        }
-                    }
-                    run = 0;
-                }
-            }
-        }
         
         ctx.putImageData(imageData, 0, 0);
         
