@@ -351,9 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 6: Single uniform block (best for forms without table borders)
+            // PSM 4: Assume a single column of text of variable sizes (often ignores table borders better than PSM 6)
             await worker.setParameters({
-                tessedit_pageseg_mode: '6',
+                tessedit_pageseg_mode: '4',
                 load_system_dawg: '0',
                 load_freq_dawg: '0'
             });
