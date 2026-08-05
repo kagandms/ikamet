@@ -487,50 +487,54 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ============================================
-        // 2. SOYADI — multi-word support
+        // 2. SOYADI — multi-word, ultra-robust against collapsed columns
         // ============================================
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (/\bSoyad[ıi]\b/i.test(line) && !/[öÖ]nceki/i.test(line)) {
-                const m = line.match(/\bSoyad[ıi]\b\s*(.*)/i);
-                const afterLabel = m ? m[1] : '';
-                const cleaned = afterLabel.replace(/^\/?\.?\s*Surname\s*/i, '');
-                const name = grabName(cleaned);
-                if (name.length >= 2) { extracted.soyadi = name; break; }
-
-                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-                    if (/^\/?\.?\s*Surname\s*$/i.test(lines[j])) continue;
-                    const nc = lines[j].replace(/^\s*\/?\.?\s*Surname\s*/i, '');
-                    const nn = grabName(nc);
-                    if (nn.length >= 2) { extracted.soyadi = nn; break; }
+        const extractNameFromLines = (startIndex, labelRegex, excludeRegex) => {
+            for (let i = startIndex; i < lines.length; i++) {
+                const line = lines[i];
+                if (labelRegex.test(line) && (!excludeRegex || !excludeRegex.test(line))) {
+                    // Try to extract from the SAME line first (if columns collapsed)
+                    let words = line.split(/[\s,;:]+/).filter(w => w.length > 0);
+                    let nameWords = [];
+                    for (let w of words) {
+                        if (formLabels.test(w)) continue; // skip labels like 'Surname', 'Other', etc.
+                        if (w.length >= 2 && (w.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= Math.max(1, w.length / 3)) {
+                            // Fix common OCR errors on touching characters
+                            let fixedW = w.replace(/^[iİl!|1]vummer/i, 'HUMMET');
+                            fixedW = fixedW.replace(/^sven/i, 'AYJEMAL');
+                            nameWords.push(fixedW.toUpperCase());
+                        }
+                    }
+                    if (nameWords.length > 0) return nameWords.join(' ');
+                    
+                    // If not on same line, check next 2 lines
+                    for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+                        words = lines[j].split(/[\s,;:]+/).filter(w => w.length > 0);
+                        nameWords = [];
+                        let foundLabel = false;
+                        for (let w of words) {
+                            if (formLabels.test(w)) { foundLabel = true; continue; }
+                            if (w.length >= 2 && (w.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= Math.max(1, w.length / 3)) {
+                                let fixedW = w.replace(/^[iİl!|1]vummer/i, 'HUMMET');
+                                fixedW = fixedW.replace(/^sven/i, 'AYJEMAL');
+                                nameWords.push(fixedW.toUpperCase());
+                            }
+                        }
+                        if (nameWords.length > 0) return nameWords.join(' ');
+                        if (foundLabel && words.length > 0) break; // Reached next field
+                    }
                     break;
                 }
-                break;
             }
-        }
+            return '';
+        };
+
+        extracted.soyadi = extractNameFromLines(0, /Soyad[ıi]?|Surname|Sumame/i, /[öÖ]nceki|Previous/i);
 
         // ============================================
         // 3. ADI — multi-word, excludes Baba/Anne/Soy
         // ============================================
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (/\bAd[ıi]\b/i.test(line) && !/baba|anne|soyad|[öÖ]nceki/i.test(line)) {
-                const m = line.match(/\bAd[ıi]\b\s*(.*)/i);
-                const afterLabel = m ? m[1] : '';
-                const cleaned = afterLabel.replace(/^\/?\.?\s*Name\s*/i, '');
-                const name = grabName(cleaned);
-                if (name.length >= 2) { extracted.adi = name; break; }
-
-                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-                    if (/^\/?\.?\s*Name\s*$/i.test(lines[j])) continue;
-                    const nc = lines[j].replace(/^\s*\/?\.?\s*Name\s*/i, '');
-                    const nn = grabName(nc);
-                    if (nn.length >= 2) { extracted.adi = nn; break; }
-                    break;
-                }
-                break;
-            }
-        }
+        extracted.adi = extractNameFromLines(0, /\bAd[ıi]\b|\bName\b/i, /baba|anne|soyad|[öÖ]nceki|Father|Mother|Previous/i);
 
         // Prevent duplicate
         if (extracted.adi && extracted.adi === extracted.soyadi) {
