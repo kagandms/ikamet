@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İkamet İzni OCR Sistemi - İstanbul Topkapı Üniversitesi</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="index.css">
+    
+    <!-- CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <!-- App Script -->
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-card">
+            <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="login-logo">
+            <h2>Sisteme Giriş</h2>
+            <p>Lütfen devam etmek için şifrenizi girin.</p>
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <input type="password" id="login-password" class="glass-input" placeholder="Şifre" onkeydown="if(event.key === 'Enter') checkLogin()">
+            </div>
+            <p id="login-error" style="color: var(--danger); display: none; font-size: 0.875rem; margin-top: 0.5rem;">Hatalı şifre, lütfen tekrar deneyin.</p>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;" onclick="checkLogin()">Giriş Yap</button>
+        </div>
+    </div>
+
+    <!-- Main App Content -->
+    <div id="app-content" style="display: none;">
+        <header class="app-header">
+            <div class="header-content">
+                <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="logo-img" onclick="document.getElementById('file-input').click()">
+                <h1>İkamet/Kimlik Kapak Hazırlayıcısı</h1>
+            </div>
+        </header>
+
+        <main class="container">
+            <!-- Step Indicators -->
+            <div class="step-indicators">
+                <div id="indicator-1" class="step active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Yükle</div>
+                </div>
+                <div class="step-line"></div>
+                <div id="indicator-2" class="step" data-step="2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">İşleniyor</div>
+                </div>
+                <div class="step-line"></div>
+                <div id="indicator-3" class="step" data-step="3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Sonuç</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Upload Section -->
+            <section id="step-1" class="step-content active">
+                <div class="card glass-card">
+                    <div id="upload-zone" class="upload-zone">
+                        <div class="upload-content">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>Formu buraya sürükleyin veya yüklemek için tıklayın</p>
+                            <input type="file" id="file-input" accept="image/*" class="hidden-input">
+                        </div>
+                        <img id="preview-image" alt="Önizleme" class="hidden">
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            Fotoğraf Yükle
+                        </button>
+                        <button id="camera-btn" class="btn btn-secondary">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                            Kamera Aç
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Processing Section -->
+            <section id="step-2" class="step-content">
+                <div class="card glass-card processing-card">
+                    <div class="spinner"></div>
+                    <h2 id="progress-text">Form Analiz Ediliyor...</h2>
+                    <div class="progress-container">
+                        <div id="progress-bar" class="progress-bar"></div>
+                    </div>
+                    <p class="processing-subtitle">Sistem metinleri çözümlüyor, lütfen bekleyin.</p>
+                </div>
+            </section>
+
+            <!-- Step 3: Results Section -->
+            <section id="step-3" class="step-content">
+                <div class="card glass-card result-form">
+                    <h2 class="subtitle">Kontrol ve Düzenleme</h2>
+                    <form id="data-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="field-basvuru-no">e-İkamet Başvuru No</label>
+                                <input type="text" id="field-basvuru-no" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="field-teslim-tarihi">Teslim Tarihi</label>
+                                <input type="text" id="field-teslim-tarihi" class="glass-input">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="field-yabanci-kimlik">Yabancı Kimlik No</label>
+                                <input type="text" id="field-yabanci-kimlik" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="field-pasaport-no">Pasaport No</label>
+                                <input type="text" id="field-pasaport-no" class="glass-input">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="field-adi">Adı</label>
+                                <input type="text" id="field-adi" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="field-soyadi">Soyadı</label>
+                                <input type="text" id="field-soyadi" class="glass-input">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="field-uyrugu">Uyruğu</label>
+                                <input type="text" id="field-uyrugu" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="field-dogum-tarihi">Doğum Tarihi</label>
+                                <input type="text" id="field-dogum-tarihi" class="glass-input">
+                            </div>
+                            
+                            <div class="form-group full-width">
+                                <label for="field-adres">Adres</label>
+                                <input type="text" id="field-adres" class="glass-input">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="field-tel">Tel No</label>
+                                <input type="text" id="field-tel" class="glass-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="field-mail">Mail</label>
+                                <input type="email" id="field-mail" class="glass-input">
+                            </div>
+                        </div>
+                        
+                        <details class="ocr-debug">
+                            <summary>🔍 Ham OCR Metni (Hata Ayıklama)</summary>
+                            <pre id="ocr-raw-text" class="ocr-raw-text"></pre>
+                        </details>
+
+                        <div class="form-actions">
+                            <button type="button" id="btn-clear" class="btn btn-outline">Temizle</button>
+                            <button type="button" id="btn-rescan" class="btn btn-secondary">Tekrar Tara</button>
+                            <input type="file" id="file-input-page2" accept="image/*" class="hidden-input">
+                            <div class="page2-actions">
+                                <div id="mini-dropzone" class="mini-dropzone">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    <span>2. Sayfa Sürükle</span>
+                                </div>
+                                <button type="button" id="btn-scan-page2" class="btn btn-primary" onclick="document.getElementById('file-input-page2').click()">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                                    2. Sayfa (Adres/Tel) Seç
+                                </button>
+                            </div>
+                            <button type="button" id="btn-download" class="btn btn-accent">
+                                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Word İndir
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>Uluslararası Öğrenci Ofisi</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>
