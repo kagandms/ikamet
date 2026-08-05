@@ -239,10 +239,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Resize if width > 3000px
+        // Resize if width > 2500px (Slightly smaller for better performance and sharpening)
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 3000;
+        const MAX_WIDTH = 2500;
         
         if (width > MAX_WIDTH) {
             const ratio = MAX_WIDTH / width;
@@ -256,8 +256,60 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw image
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Start OCR directly (Tesseract handles grayscale and Otsu binarization natively and much better)
-        runOCR(canvas.toDataURL('image/jpeg', 0.9));
+        // Apply Sharpen Filter to enhance thin text against shadows
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const w = width;
+        const h = height;
+        const weights = [
+             0, -1,  0,
+            -1,  5, -1,
+             0, -1,  0
+        ];
+        
+        // We need a copy of the original data to convolve correctly
+        const output = ctx.createImageData(width, height);
+        const outData = output.data;
+        
+        // Fast grayscale and simple threshold prep
+        const grayData = new Uint8Array(w * h);
+        for (let i = 0; i < data.length; i += 4) {
+            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            grayData[i/4] = gray;
+            outData[i+3] = 255; // Alpha
+        }
+
+        // Apply 3x3 Sharpen on grayscale
+        for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+                const idx = y * w + x;
+                let sum = 0;
+                
+                sum += grayData[idx - w - 1] * weights[0];
+                sum += grayData[idx - w]     * weights[1];
+                sum += grayData[idx - w + 1] * weights[2];
+                sum += grayData[idx - 1]     * weights[3];
+                sum += grayData[idx]         * weights[4];
+                sum += grayData[idx + 1]     * weights[5];
+                sum += grayData[idx + w - 1] * weights[6];
+                sum += grayData[idx + w]     * weights[7];
+                sum += grayData[idx + w + 1] * weights[8];
+                
+                let val = sum;
+                if (val > 255) val = 255;
+                if (val < 0) val = 0;
+                
+                const outIdx = idx * 4;
+                outData[outIdx] = val;
+                outData[outIdx + 1] = val;
+                outData[outIdx + 2] = val;
+            }
+        }
+
+        ctx.putImageData(output, 0, 0);
+        
+        // Start OCR directly passing the canvas element (avoids JPEG compression artifacts)
+        runOCR(canvas);
     }
 
     // --- OCR Processing ---
