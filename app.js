@@ -274,31 +274,18 @@ document.addEventListener('DOMContentLoaded', () => {
             gray[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
         }
         
-        // Apply 3x3 Box Blur to connect gaps in thermal/dot-matrix text
-        const blurred = new Uint8Array(width * height);
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                const idx = y * width + x;
-                blurred[idx] = (
-                    gray[idx - width - 1] + gray[idx - width] + gray[idx - width + 1] +
-                    gray[idx - 1]         + gray[idx]         + gray[idx + 1] +
-                    gray[idx + width - 1] + gray[idx + width] + gray[idx + width + 1]
-                ) / 9;
-            }
-        }
-        
-        // Calculate integral image using blurred image
+        // Calculate integral image directly from gray
         for (let i = 0; i < width; i++) {
             let sum = 0;
             for (let j = 0; j < height; j++) {
                 const index = j * width + i;
-                sum += blurred[index];
+                sum += gray[index];
                 if (i === 0) intImg[index] = sum;
                 else intImg[index] = intImg[index - 1] + sum;
             }
         }
         
-        // Apply threshold using blurred image
+        // Apply threshold using gray image
         for (let i = 0; i < width; i++) {
             for (let j = 0; j < height; j++) {
                 const index = j * width + i;
@@ -311,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const count = (x2 - x1) * (y2 - y1);
                 let sum = intImg[y2 * width + x2] - (y1 > 0 ? intImg[(y1-1) * width + x2] : 0) - (x1 > 0 ? intImg[y2 * width + (x1-1)] : 0) + ((x1 > 0 && y1 > 0) ? intImg[(y1-1) * width + (x1-1)] : 0);
                 
-                if (blurred[index] * count <= sum * (1.0 - T)) {
+                if (gray[index] * count <= sum * (1.0 - T)) {
                     // Black
                     data[index*4] = 0;
                     data[index*4+1] = 0;
@@ -362,10 +349,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 6: Single uniform block (best for forms/tables)
-            // Disable dictionaries so it doesn't delete foreign names thinking they are typos
+            // PSM 11: Sparse text
             await worker.setParameters({
-                tessedit_pageseg_mode: '6',
+                tessedit_pageseg_mode: '11',
                 load_system_dawg: '0',
                 load_freq_dawg: '0'
             });
