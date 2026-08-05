@@ -239,10 +239,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Resize if width > 2000px (Optimized for OCR)
+        // Resize if width > 4000px (Keep resolution high to prevent text fusing with table borders)
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 2000;
+        const MAX_WIDTH = 4000;
         
         if (width > MAX_WIDTH) {
             const ratio = MAX_WIDTH / width;
@@ -257,10 +257,8 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.width = width;
         canvas.height = height;
 
-        // Apply a slight blur natively to merge thermal/dot-matrix printer gaps
-        ctx.filter = 'blur(1px)';
+        // Draw original image natively without blur to prevent bleeding
         ctx.drawImage(img, 0, 0, width, height);
-        ctx.filter = 'none'; // reset
         
         // Apply Bradley-Roth Adaptive Thresholding (to defeat shadows and preserve thin text)
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -351,9 +349,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 4: Assume a single column of text of variable sizes (often ignores table borders better than PSM 6)
+            // PSM 6: Single uniform block (best for forms)
             await worker.setParameters({
-                tessedit_pageseg_mode: '4',
+                tessedit_pageseg_mode: '6',
                 load_system_dawg: '0',
                 load_freq_dawg: '0'
             });
