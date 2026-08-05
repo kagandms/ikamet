@@ -239,10 +239,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        // Resize if width > 2500px (Slightly smaller for better performance and sharpening)
+        // Resize if width > 2000px (Optimized for OCR)
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 2500;
+        const MAX_WIDTH = 2000;
         
         if (width > MAX_WIDTH) {
             const ratio = MAX_WIDTH / width;
@@ -253,67 +253,15 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.width = width;
         canvas.height = height;
 
-        // Draw image
+        // Draw original image (No custom contrast/sharpen - let Tesseract handle it)
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Apply Sharpen Filter to enhance thin text against shadows
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const data = imageData.data;
-        const w = width;
-        const h = height;
-        const weights = [
-             0, -1,  0,
-            -1,  5, -1,
-             0, -1,  0
-        ];
-        
-        // We need a copy of the original data to convolve correctly
-        const output = ctx.createImageData(width, height);
-        const outData = output.data;
-        
-        // Fast grayscale and simple threshold prep
-        const grayData = new Uint8Array(w * h);
-        for (let i = 0; i < data.length; i += 4) {
-            const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-            grayData[i/4] = gray;
-            outData[i+3] = 255; // Alpha
-        }
-
-        // Apply 3x3 Sharpen on grayscale
-        for (let y = 1; y < h - 1; y++) {
-            for (let x = 1; x < w - 1; x++) {
-                const idx = y * w + x;
-                let sum = 0;
-                
-                sum += grayData[idx - w - 1] * weights[0];
-                sum += grayData[idx - w]     * weights[1];
-                sum += grayData[idx - w + 1] * weights[2];
-                sum += grayData[idx - 1]     * weights[3];
-                sum += grayData[idx]         * weights[4];
-                sum += grayData[idx + 1]     * weights[5];
-                sum += grayData[idx + w - 1] * weights[6];
-                sum += grayData[idx + w]     * weights[7];
-                sum += grayData[idx + w + 1] * weights[8];
-                
-                let val = sum;
-                if (val > 255) val = 255;
-                if (val < 0) val = 0;
-                
-                const outIdx = idx * 4;
-                outData[outIdx] = val;
-                outData[outIdx + 1] = val;
-                outData[outIdx + 2] = val;
-            }
-        }
-
-        ctx.putImageData(output, 0, 0);
-        
-        // Start OCR directly passing the canvas element (avoids JPEG compression artifacts)
+        // Start OCR directly passing the canvas
         runOCR(canvas);
     }
 
     // --- OCR Processing ---
-    async function runOCR(imageDataUrl) {
+    async function runOCR(imageSource) {
         try {
             if (progressBar) progressBar.style.width = '0%';
             if (progressText) progressText.innerText = 'OCR başlatılıyor...';
@@ -331,13 +279,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 6: Assume a single uniform block of text. Great for forms and tables.
-            // PSM 4: Assume a single column of text of variable sizes.
+            // PSM 11: Sparse text. Finds as much text as possible in no particular order.
+            // This prevents Tesseract from dropping table cells or text bounded by lines.
             await worker.setParameters({
-                tessedit_pageseg_mode: '6'
+                tessedit_pageseg_mode: '11',
+                preserve_interword_spaces: '1'
             });
 
-            const result = await worker.recognize(imageDataUrl);
+            const result = await worker.recognize(imageSource);
             await worker.terminate();
 
             const text = result.data.text;
