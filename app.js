@@ -255,31 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Draw image
         ctx.drawImage(img, 0, 0, width, height);
-
-        // Basic image processing (grayscale & contrast)
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const data = imageData.data;
         
-        // Moderate contrast
-        const contrast = 30; 
-        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-
-        for (let i = 0; i < data.length; i += 4) {
-            // Grayscale
-            const avg = 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2];
-            
-            // Contrast
-            let newColor = factor * (avg - 128) + 128;
-            newColor = Math.max(0, Math.min(255, newColor));
-
-            data[i] = newColor;     // R
-            data[i + 1] = newColor; // G
-            data[i + 2] = newColor; // B
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-        
-        // Start OCR
+        // Start OCR directly (Tesseract handles grayscale and Otsu binarization natively and much better)
         runOCR(canvas.toDataURL('image/jpeg', 0.9));
     }
 
@@ -292,7 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait a moment for UI to update
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Use Worker API with default PSM (PSM 3) which preserves reading order better
             const worker = await Tesseract.createWorker('tur', 1, {
                 logger: m => {
                     if (m.status === 'recognizing text') {
@@ -301,6 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (progressText) progressText.innerText = 'Okunuyor... %' + p;
                     }
                 }
+            });
+
+            // PSM 6: Assume a single uniform block of text. Great for forms and tables.
+            // PSM 4: Assume a single column of text of variable sizes.
+            await worker.setParameters({
+                tessedit_pageseg_mode: '6'
             });
 
             const result = await worker.recognize(imageDataUrl);
