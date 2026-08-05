@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="index.css?v=1.0.1">
     
     <!-- CDNs -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -19,7 +19,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <!-- App Script -->
-    <script src="app.js" defer></script>
+    <script src="app.js?v=1.0.1" defer></script>
 </head>
 <body>
     <!-- Login Screen -->
@@ -41,7 +41,10 @@
         <header class="app-header">
             <div class="header-content">
                 <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="logo-img" onclick="document.getElementById('file-input').click()">
-                <h1>İkamet/Kimlik Kapak Hazırlayıcısı</h1>
+                <div style="display: flex; align-items: center; justify-content: space-between; flex: 1;">
+                    <h1>İkamet/Kimlik Kapak Hazırlayıcısı</h1>
+                    <span class="version-badge">v1.0.1</span>
+                </div>
             </div>
         </header>
 
