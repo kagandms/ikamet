@@ -269,7 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait a moment for UI to update
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            const worker = await Tesseract.createWorker('tur', 1, {
+            // Use tur+eng to help with foreign names, disable dictionary bias
+            const worker = await Tesseract.createWorker(['tur', 'eng'], 1, {
                 logger: m => {
                     if (m.status === 'recognizing text') {
                         const p = Math.round(m.progress * 100);
@@ -279,11 +280,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 11: Sparse text. Finds as much text as possible in no particular order.
-            // This prevents Tesseract from dropping table cells or text bounded by lines.
+            // PSM 6: Single uniform block (best for forms/tables)
+            // Disable dictionaries so it doesn't delete foreign names thinking they are typos
             await worker.setParameters({
-                tessedit_pageseg_mode: '11',
-                preserve_interword_spaces: '1'
+                tessedit_pageseg_mode: '6',
+                load_system_dawg: '0',
+                load_freq_dawg: '0'
             });
 
             const result = await worker.recognize(imageSource);
