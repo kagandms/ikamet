@@ -978,7 +978,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let aM;
         while ((aM = adiRegex.exec(fullText)) !== null) {
             const before = fullText.substring(Math.max(0, aM.index - 15), aM.index);
-            if (/soyad/i.test(before)) continue; // "Soyadı" içindeki "Adı" eşleşmesini atla
+            // Soyadı, Baba Adı, Anne Adı gibi kelimelerin içindeki "Adı" kelimesini atla
+            if (/soy|baba|anne|father|mother|previous|[öo]nceki/i.test(before)) continue; 
             
             const after = fullText.substring(aM.index + aM[0].length, aM.index + aM[0].length + 150);
             const words = after.split(/[\s\/:.-]+/).filter(w => w.length >= 2);
