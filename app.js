@@ -328,30 +328,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw image
         ctx.drawImage(img, 0, 0, width, height);
         
-        // --- Image Pre-processing (Grayscale & High Contrast) ---
-        // Bu işlem arkaplandaki desenlerin ve renklerin Tesseract tarafından harf olarak 
-        // algılanmasını (halüsinasyon) engeller.
+        // --- Image Pre-processing ---
+        // Sadece basit gri tonlama yapıyoruz. Agresif kontrast filtreleri gölgeli 
+        // fotoğraflarda metni yok ettiği için iptal edildi. (Tesseract kendi Otsu'sunu kullansın)
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
-        
-        const contrast = 100; // Yüksek zıtlık
-        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
         
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
             
-            // 1. Gri tonlama (Grayscale)
+            // Basit Grayscale
             const gray = (r * 0.299) + (g * 0.587) + (b * 0.114);
             
-            // 2. Kontrast artırımı (Contrast)
-            let newColor = factor * (gray - 128) + 128;
-            newColor = Math.max(0, Math.min(255, newColor)); // 0-255 arasına sınırla
-            
-            data[i] = newColor;     // R
-            data[i + 1] = newColor; // G
-            data[i + 2] = newColor; // B
+            data[i] = gray;     // R
+            data[i + 1] = gray; // G
+            data[i + 2] = gray; // B
         }
         ctx.putImageData(imageData, 0, 0);
         
@@ -965,12 +958,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
                 if (cleanWord.length < 2) continue;
                 
-                // Formlarda isimler HER ZAMAN BÜYÜK HARFLE yazılır. 
-                // Eğer küçük harf varsa, bu muhtemelen OCR'ın eksik okuduğu bir etikettir (örn: "oğumda", "yruğu")
-                if (/^[A-ZÇĞİÖŞÜ]+$/.test(cleanWord)) {
-                    validParts.push(cleanWord);
+                // İsimlerin tamamen küçük harf olmasını engelliyoruz ama OCR 1-2 harfi küçük okuduysa tolerans gösteriyoruz
+                const isMostlyUppercase = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= cleanWord.length - 2;
+                
+                if (isMostlyUppercase) {
+                    validParts.push(cleanWord.toUpperCase());
                 } else {
-                    if (validParts.length > 0) break; // Küçük harfli kelime gördüğümüzde ismin bittiğini anlıyoruz
+                    if (validParts.length > 0) break; 
                 }
             }
             if (validParts.length > 0 && !extracted.soyadi) {
@@ -997,10 +991,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
                 if (cleanWord.length < 2) continue;
                 
-                if (/^[A-ZÇĞİÖŞÜ]+$/.test(cleanWord)) {
-                    validParts.push(cleanWord);
+                const isMostlyUppercase = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= cleanWord.length - 2;
+
+                if (isMostlyUppercase) {
+                    validParts.push(cleanWord.toUpperCase());
                 } else {
-                    if (validParts.length > 0) break; // İsimlerin büyük harfle yazılma zorunluluğu kuralı
+                    if (validParts.length > 0) break; 
                 }
             }
             if (validParts.length > 0 && !extracted.adi) {
