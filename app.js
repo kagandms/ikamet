@@ -328,8 +328,35 @@ document.addEventListener('DOMContentLoaded', () => {
         // Draw image
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Start OCR directly (Tesseract handles grayscale and Otsu binarization natively and much better)
-        runOCR(canvas.toDataURL('image/jpeg', 0.9), canvas);
+        // --- Image Pre-processing (Grayscale & High Contrast) ---
+        // Bu işlem arkaplandaki desenlerin ve renklerin Tesseract tarafından harf olarak 
+        // algılanmasını (halüsinasyon) engeller.
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        
+        const contrast = 100; // Yüksek zıtlık
+        const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+        
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // 1. Gri tonlama (Grayscale)
+            const gray = (r * 0.299) + (g * 0.587) + (b * 0.114);
+            
+            // 2. Kontrast artırımı (Contrast)
+            let newColor = factor * (gray - 128) + 128;
+            newColor = Math.max(0, Math.min(255, newColor)); // 0-255 arasına sınırla
+            
+            data[i] = newColor;     // R
+            data[i + 1] = newColor; // G
+            data[i + 2] = newColor; // B
+        }
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Start OCR
+        runOCR(canvas.toDataURL('image/jpeg', 0.95), canvas);
     }
 
     // --- OCR Processing ---
