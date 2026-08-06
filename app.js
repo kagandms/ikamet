@@ -705,7 +705,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         // Form etiketleri — bunları değer olarak almayacağız (OCR hataları dahil)
-        const coordFormLabels = /^(di[gğ]er|other|citizenship|uyru[gğ]u|uyrul|nationality|nationali|nation|do[gğ]um(?:daki)?|born|birth|[öo]nceki|previous|surname|surmame|surnane|sumame|name|nane|mame|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|id|no|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi]?|ki[sş]i|personal|bilgi|in|of|for|the|that)$/i;
+        // Form etiketlerini OCR hatalarıyla birlikte tanıma listesi
+        const coordFormLabels = /^(di[gğ]er|other|citizenship|uyr[uü][gğ]?[uü]?[a-z]*|nationality|nationali|nation|[dt][oö][gğ][uü]m[a-z]*|born|birth|[öo]nceki|previous|surname|surmame|surnane|sumame|name|nane|mame|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|id|no|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi]?|ki[sş]i|personal|bilgi|in|of|for|the|that)$/i;
         
         // Resmin tahmini genişliği (words'den hesapla)
         const imageWidth = Math.max(...words.map(w => w.bbox.x1), 1);
@@ -864,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Known form label words — stops name extraction at right-column labels (OCR hataları dahil)
-        const formLabels = /^(di[gğ]er|other|citizenship|uyru[gğ]u|uyrul|nationality|nationali|nation|do[gğ]um(?:daki)?|born|birth|[öo]nceki|previous|surname|surmame|surnane|sumame|name|nane|mame|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|id|no|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi])$/i;
+        const formLabels = /^(di[gğ]er|other|citizenship|uyr[uü][gğ]?[uü]?[a-z]*|nationality|nationali|nation|[dt][oö][gğ][uü]m[a-z]*|born|birth|[öo]nceki|previous|surname|surmame|surnane|sumame|name|nane|mame|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|id|no|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi])$/i;
 
         // Helper: grab consecutive name words, stopping at form labels.
         // Tolerates 1 lowercase OCR error per word.
