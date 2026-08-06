@@ -825,7 +825,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- DOĞUM TARİHİ ---
         if (!extracted.dogumTarihi) {
             for (const w of words) {
-                if (!/^(Tarih[iı]?|Date|Birth)$/i.test(w.text)) continue;
+                if (!/(Do[gğ]um|Birth)/i.test(w.text)) continue;
                 
                 // Sağ sütunda olduğundan emin olalım (Kayıt Tarihi solda karışmasın, esneklik için 0.30)
                 if (w.bbox.x0 < imageWidth * 0.30) continue;
@@ -1049,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. DOĞUM TARİHİ
         // ============================================
         const dobMatch = fullText.match(
-            /(?:Do[gğ]um\s*Tarih[a-zıi]|Date\s*of\s*Birth|Born)[^\d]{0,30}(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/i
+            /(?:Do[gğ]um\s*Tarih[a-zıi]|Date\s*of\s*Birth|Born)[^\d]{0,120}(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/i
         );
         if (dobMatch) {
             extracted.dogumTarihi = `${dobMatch[1].padStart(2, '0')}.${dobMatch[2].padStart(2, '0')}.${dobMatch[3]}`;
