@@ -736,8 +736,30 @@ document.addEventListener('DOMContentLoaded', () => {
             return validWords.slice(0, 3);
         };
         
-        // --- ADI VE SOYADI (Kullanıcı isteğiyle OCR extraction kaldırıldı) ---
+        // --- ADI VE SOYADI ---
+        if (!extracted.soyadi) {
+            for (const w of words) {
+                if (!/^Soyad[ıi]?$/i.test(w.text) && !/^Surname$/i.test(w.text)) continue;
+                const values = findValueWordsForLabel(w);
+                if (values.length > 0) {
+                    extracted.soyadi = values.join(' ');
+                    console.log('[Koordinat] Soyadı bulundu:', extracted.soyadi);
+                    break;
+                }
+            }
+        }
         
+        if (!extracted.adi) {
+            for (const w of words) {
+                if (!/^Ad[ıi]?$/i.test(w.text) && !/^Name$/i.test(w.text)) continue;
+                const values = findValueWordsForLabel(w);
+                if (values.length > 0) {
+                    extracted.adi = values.join(' ');
+                    console.log('[Koordinat] Adı bulundu:', extracted.adi);
+                    break;
+                }
+            }
+        }
         // --- UYRUĞU ---
         if (!extracted.uyrugu) {
             for (const w of words) {
@@ -893,8 +915,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ============================================
-        // 2. SOYADI VE ADI — OCR Extraction Kaldırıldı
+        // 2. SOYADI VE ADI
         // ============================================
+
+        // Soyadı
+        const soyadiRegex = /\b(?:Soyad[ıi]?|Surname)\b/gi;
+        let sM;
+        while ((sM = soyadiRegex.exec(fullText)) !== null) {
+            const after = fullText.substring(sM.index + sM[0].length, sM.index + sM[0].length + 150);
+            const words = after.split(/[\s\/:.-]+/).filter(w => w.length >= 2);
+            let validParts = [];
+            for (let word of words) {
+                if (formLabels.test(word)) {
+                    if (validParts.length > 0) break;
+                    continue;
+                }
+                if (/^[A-ZÇĞİÖŞÜa-zçğıöşü]+$/.test(word)) {
+                    validParts.push(word.toUpperCase());
+                }
+            }
+            if (validParts.length > 0 && !extracted.soyadi) {
+                extracted.soyadi = validParts.slice(0, 3).join(' ');
+                break;
+            }
+        }
+
+        // Adı
+        const adiRegex = /\b(?:Ad[ıi]?|Name)\b/gi;
+        let aM;
+        while ((aM = adiRegex.exec(fullText)) !== null) {
+            const before = fullText.substring(Math.max(0, aM.index - 15), aM.index);
+            if (/soyad/i.test(before)) continue; // "Soyadı" içindeki "Adı" eşleşmesini atla
+            
+            const after = fullText.substring(aM.index + aM[0].length, aM.index + aM[0].length + 150);
+            const words = after.split(/[\s\/:.-]+/).filter(w => w.length >= 2);
+            let validParts = [];
+            for (let word of words) {
+                if (formLabels.test(word)) {
+                    if (validParts.length > 0) break;
+                    continue;
+                }
+                if (/^[A-ZÇĞİÖŞÜa-zçğıöşü]+$/.test(word)) {
+                    validParts.push(word.toUpperCase());
+                }
+            }
+            if (validParts.length > 0 && !extracted.adi) {
+                extracted.adi = validParts.slice(0, 3).join(' ');
+                break;
+            }
+        }
 
         // ============================================
         // 4. UYRUĞU — standalone, skip Diğer/Doğumdaki
