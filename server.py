@@ -1,13 +1,18 @@
 import os
 import cv2
 import numpy as np
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from paddleocr import PaddleOCR
 
-app = Flask(__name__)
+# Configure Flask to serve static files from the current directory
+app = Flask(__name__, static_folder='.', static_url_path='')
 # Enable CORS for all domains so app.js can access it
 CORS(app)
+
+@app.route('/')
+def serve_index():
+    return app.send_static_file('index.html')
 
 # Initialize PaddleOCR
 # use_angle_cls=True to automatically detect orientation

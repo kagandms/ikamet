@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 3000);
                 
-                const response = await fetch('http://localhost:5000/api/ocr', {
+                const response = await fetch('/api/ocr', {
                     method: 'POST',
                     body: formData,
                     signal: controller.signal
