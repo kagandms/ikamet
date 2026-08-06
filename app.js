@@ -618,8 +618,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         for (const w of sectionWords) {
             if (/^Adres|Address$/i.test(w.text)) {
-                adresLabelY = w.bbox.y0;
-            } else if (adresLabelY !== -1 && /^Ta[sş][iı]nma|Moving$/i.test(w.text) && w.bbox.y0 > adresLabelY) {
+                if (adresLabelY === -1 || w.bbox.y0 < adresLabelY) {
+                    adresLabelY = w.bbox.y0;
+                }
+            } else if (adresLabelY !== -1 && /^Ta[sŞş][iıI]nma|Moving$/i.test(w.text) && w.bbox.y0 > adresLabelY) {
                 if (w.bbox.y0 < nextLabelY) nextLabelY = w.bbox.y0;
             }
         }
@@ -760,7 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- ADI VE SOYADI ---
         if (!extracted.soyadi) {
             for (const w of words) {
-                if (!/^Soyad[ıi]?$/i.test(w.text) && !/^Surname$/i.test(w.text)) continue;
+                if (!/Soyad[iı]?/i.test(w.text) && !/Surname/i.test(w.text)) continue;
                 const values = findValueWordsForLabel(w);
                 if (values.length > 0) {
                     extracted.soyadi = values.join(' ');
@@ -772,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!extracted.adi) {
             for (const w of words) {
-                if (!/^Ad[ıi]?$/i.test(w.text) && !/^Name$/i.test(w.text)) continue;
+                if (!/Ad[iı]?/i.test(w.text) && !/Name/i.test(w.text)) continue;
                 const values = findValueWordsForLabel(w);
                 if (values.length > 0) {
                     extracted.adi = values.join(' ');
@@ -944,7 +946,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============================================
 
         // Soyadı
-        const soyadiRegex = /\b(?:Soyad[ıi]?|Surname)\b/gi;
+        const soyadiRegex = /(?:Soyad[iı]?|Surname)/gi;
         let sM;
         while ((sM = soyadiRegex.exec(fullText)) !== null) {
             const after = fullText.substring(sM.index + sM[0].length, sM.index + sM[0].length + 150);
@@ -975,7 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Adı
-        const adiRegex = /\b(?:Ad[ıi]?|Name)\b/gi;
+        const adiRegex = /(?:Ad[iı]?|Name)/gi;
         let aM;
         while ((aM = adiRegex.exec(fullText)) !== null) {
             const before = fullText.substring(Math.max(0, aM.index - 15), aM.index);
