@@ -368,9 +368,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData();
                 formData.append('image', file);
                 
-                // 3 saniyelik zaman aşımı ile fetch
+                // 30 saniyelik zaman aşımı (telefon fotoları büyük olabilir)
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
                 
                 const response = await fetch('/api/ocr', {
                     method: 'POST',
