@@ -51,15 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const fields = {
         basvuruNo: document.getElementById('field-basvuru-no'),
         teslimTarihi: document.getElementById('field-teslim-tarihi'),
-        yabanciKimlik: document.getElementById('field-yabanci-kimlik'),
         pasaportNo: document.getElementById('field-pasaport-no'),
         adi: document.getElementById('field-adi'),
         soyadi: document.getElementById('field-soyadi'),
         uyrugu: document.getElementById('field-uyrugu'),
         dogumTarihi: document.getElementById('field-dogum-tarihi'),
         adres: document.getElementById('field-adres'),
-        tel: document.getElementById('field-tel'),
-        mail: document.getElementById('field-mail')
+        tel: document.getElementById('field-tel')
     };
 
     // --- Toast System ---
@@ -211,6 +209,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    let cropperInstance = null;
+    const cropperModal = document.getElementById('cropper-modal');
+    const cropperImage = document.getElementById('cropper-image');
+    let currentImageObj = null;
+
     function handleFile(file) {
         if (!file.type.startsWith('image/')) {
             showToast('Lütfen geçerli bir resim dosyası yükleyin.', 'error');
@@ -225,12 +228,81 @@ document.addEventListener('DOMContentLoaded', () => {
                     previewImage.src = img.src;
                     previewImage.style.display = 'block';
                 }
-                processAndRunOCR(img);
+                
+                // OCR başlatmak yerine Kırpma Modalını göster
+                currentImageObj = img;
+                if (cropperImage && cropperModal) {
+                    cropperImage.src = img.src;
+                    cropperModal.style.display = 'flex';
+                    
+                    if (cropperInstance) {
+                        cropperInstance.destroy();
+                    }
+                    
+                    cropperInstance = new Cropper(cropperImage, {
+                        viewMode: 1,
+                        dragMode: 'move',
+                        autoCropArea: 0.9,
+                        restore: false,
+                        guides: true,
+                        center: true,
+                        highlight: false,
+                        cropBoxMovable: true,
+                        cropBoxResizable: true,
+                        toggleDragModeOnDblclick: false,
+                    });
+                } else {
+                    // Modal yoksa fallback olarak direk OCR başlat (beklenmeyen durum)
+                    processAndRunOCR(img);
+                }
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
+
+    // Modal Buton Dinleyicileri
+    document.getElementById('btn-crop-cancel')?.addEventListener('click', () => {
+        if (cropperModal) cropperModal.style.display = 'none';
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+        if (previewImage) previewImage.style.display = 'none';
+        fileInput.value = "";
+        if (fileInputPage2) fileInputPage2.value = "";
+    });
+
+    document.getElementById('btn-crop-skip')?.addEventListener('click', () => {
+        if (cropperModal) cropperModal.style.display = 'none';
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+        if (currentImageObj) {
+            processAndRunOCR(currentImageObj);
+        }
+    });
+
+    document.getElementById('btn-crop-confirm')?.addEventListener('click', () => {
+        if (!cropperInstance) return;
+        
+        const croppedCanvas = cropperInstance.getCroppedCanvas();
+        if (!croppedCanvas) {
+            document.getElementById('btn-crop-skip')?.click();
+            return;
+        }
+        
+        if (cropperModal) cropperModal.style.display = 'none';
+        cropperInstance.destroy();
+        cropperInstance = null;
+        
+        const croppedImg = new Image();
+        croppedImg.onload = () => {
+            processAndRunOCR(croppedImg);
+        };
+        croppedImg.src = croppedCanvas.toDataURL('image/jpeg', 0.95);
+    });
 
     // --- Image Pre-processing ---
     function processAndRunOCR(img) {
@@ -257,11 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.drawImage(img, 0, 0, width, height);
         
         // Start OCR directly (Tesseract handles grayscale and Otsu binarization natively and much better)
-        runOCR(canvas.toDataURL('image/jpeg', 0.9));
+        runOCR(canvas.toDataURL('image/jpeg', 0.9), canvas);
     }
 
     // --- OCR Processing ---
-    async function runOCR(imageDataUrl) {
+    async function runOCR(imageDataUrl, sourceCanvas) {
         try {
             if (progressBar) progressBar.style.width = '0%';
             if (progressText) progressText.innerText = 'OCR başlatılıyor...';
@@ -279,23 +351,195 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // PSM 6: Assume a single uniform block of text. Great for forms and tables.
-            // PSM 4: Assume a single column of text of variable sizes.
+            // === PASS 1: PSM 6 (mevcut — başvuru no, pasaport no vs. için) ===
             await worker.setParameters({
                 tessedit_pageseg_mode: '6'
             });
 
             const result = await worker.recognize(imageDataUrl);
-            await worker.terminate();
 
             const text = result.data.text;
-            if (progressText) progressText.innerText = 'İşlem tamamlandı!';
+            const words = result.data.words || [];
+            let allPassWords = [...words];
             
             // Log raw text for debugging
             const rawTextEl = document.getElementById('ocr-raw-text');
             if (rawTextEl) rawTextEl.textContent = text;
             
-            extractFields(text);
+            // === 2. SAYFA (PAGE 2) İÇİN ERKEN ÇIKIŞ ===
+            if (typeof isProcessingPage2 !== 'undefined' && isProcessingPage2) {
+                console.log('[OCR] 2. Sayfa Koordinat bazlı extraction başlatılıyor...');
+                extractPage2FromCoordinates(words);
+                
+                await worker.terminate();
+                if (progressText) progressText.innerText = 'İşlem tamamlandı!';
+                showToast('2. Sayfa bilgileri çıkarıldı.', 'success');
+                setActiveStep(3);
+                isProcessingPage2 = false;
+                return;
+            }
+            
+            // Text-based extraction (mevcut mantık — başvuru no, pasaport no, vb.)
+            const extracted = extractFields(text);
+            
+            // Koordinat bazlı fallback: uyruk boşsa words array'den dene
+            if (!extracted.uyrugu) {
+                console.log('[OCR] Pass 1 koordinat bazlı extraction deneniyor...');
+                extractFromCoordinates(words, extracted);
+            }
+            
+            // === PASS 2: Hâlâ boş alanlar varsa, PSM 4 ile tekrar tara ===
+            if (!extracted.uyrugu || !extracted.dogumTarihi) {
+                console.log('[OCR] Pass 2 başlatılıyor (PSM 4)...');
+                if (progressText) progressText.innerText = 'Eksik alanlar tekrar taranıyor...';
+                
+                await worker.setParameters({
+                    tessedit_pageseg_mode: '4'
+                });
+                
+                const result2 = await worker.recognize(imageDataUrl);
+                const text2 = result2.data.text;
+                const words2 = result2.data.words || [];
+                
+                console.log('[OCR] Pass 2 (PSM 4) ham metin:', text2);
+                
+                // Pass 2 text-based extraction (sadece boş alanlar için)
+                const extracted2 = extractFields(text2);
+                if (!extracted.uyrugu && extracted2.uyrugu) extracted.uyrugu = extracted2.uyrugu;
+                if (!extracted.dogumTarihi && extracted2.dogumTarihi) extracted.dogumTarihi = extracted2.dogumTarihi;
+                allPassWords.push(...words2);
+                
+                // Pass 2 koordinat bazlı extraction (hâlâ boşlar için)
+                if (!extracted.uyrugu) {
+                    extractFromCoordinates(words2, extracted);
+                }
+                
+                // === PASS 3: Son çare — PSM 11 (sparse text) ===
+                if (!extracted.uyrugu) {
+                    console.log('[OCR] Pass 3 başlatılıyor (PSM 11 - sparse)...');
+                    if (progressText) progressText.innerText = 'Detaylı tarama yapılıyor...';
+                    
+                    await worker.setParameters({
+                        tessedit_pageseg_mode: '11'
+                    });
+                    
+                    const result3 = await worker.recognize(imageDataUrl);
+                    const text3 = result3.data.text;
+                    const words3 = result3.data.words || [];
+                    
+                    console.log('[OCR] Pass 3 (PSM 11) ham metin:', text3);
+                    
+                    const extracted3 = extractFields(text3);
+                    if (!extracted.uyrugu && extracted3.uyrugu) extracted.uyrugu = extracted3.uyrugu;
+                    if (!extracted.dogumTarihi && extracted3.dogumTarihi) extracted.dogumTarihi = extracted3.dogumTarihi;
+                    
+                    if (!extracted.uyrugu) {
+                        extractFromCoordinates(words3, extracted);
+                    }
+                    allPassWords.push(...words3);
+                }
+            }
+            
+            // === UYRUĞU: HÜCRE CROP + PSM 7 RE-OCR ===
+            if (!extracted.uyrugu && sourceCanvas) {
+                console.log('[OCR] Uyruğu için hücre crop + PSM 7 deneniyor...');
+                if (progressText) progressText.innerText = 'Uyruğu alanı taranıyor...';
+                
+                // allPassWords içinden uygun etiketi bul
+                let labelBbox = null;
+                
+                // Önce standalone "Nationality" ara ("in Born" olmayanı)
+                for (const w of allPassWords) {
+                    if (!/^Nationality$/i.test(w.text)) continue;
+                    const wCenterY = (w.bbox.y0 + w.bbox.y1) / 2;
+                    const wHeight = w.bbox.y1 - w.bbox.y0;
+                    const hasIn = allPassWords.some(other => 
+                        /^in$/i.test(other.text) && 
+                        Math.abs(((other.bbox.y0 + other.bbox.y1) / 2) - wCenterY) < wHeight * 0.6 &&
+                        other.bbox.x0 > w.bbox.x1
+                    );
+                    if (!hasIn) {
+                        labelBbox = w.bbox;
+                        console.log('[Crop] "Nationality" etiketi bulundu:', labelBbox);
+                        break;
+                    }
+                }
+                
+                // Bulamadıysa standalone "Uyruğu" ara
+                if (!labelBbox) {
+                    for (const w of allPassWords) {
+                        if (!/^Uyru[gğ]u$/i.test(w.text)) continue;
+                        const wCenterY = (w.bbox.y0 + w.bbox.y1) / 2;
+                        const wHeight = w.bbox.y1 - w.bbox.y0;
+                        const hasDiger = allPassWords.some(other => 
+                            /^(Di[gğ]er|Do[gğ]um)/i.test(other.text) && 
+                            Math.abs(((other.bbox.y0 + other.bbox.y1) / 2) - wCenterY) < wHeight * 0.6
+                        );
+                        if (!hasDiger) {
+                            labelBbox = w.bbox;
+                            console.log('[Crop] "Uyruğu" etiketi bulundu:', labelBbox);
+                            break;
+                        }
+                    }
+                }
+                
+                if (labelBbox) {
+                    const canvasW = sourceCanvas.width;
+                    const labelH = labelBbox.y1 - labelBbox.y0;
+                    const padding = labelH * 0.8;
+                    
+                    // Crop bölgesi: etiketin sağından, resmin %90'ına kadar
+                    const cropX = Math.max(0, labelBbox.x1 + 2);
+                    const cropY = Math.max(0, labelBbox.y0 - padding);
+                    const cropW = Math.min(canvasW * 0.45, canvasW - cropX);
+                    const cropH = labelH + padding * 2;
+                    
+                    if (cropW > 10 && cropH > 5) {
+                        const cropCanvas = document.createElement('canvas');
+                        cropCanvas.width = cropW;
+                        cropCanvas.height = cropH;
+                        const cropCtx = cropCanvas.getContext('2d');
+                        cropCtx.drawImage(sourceCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                        
+                        // PSM 7: Tek satır metin olarak tara
+                        await worker.setParameters({ tessedit_pageseg_mode: '7' });
+                        const cropResult = await worker.recognize(cropCanvas.toDataURL('image/jpeg', 0.95));
+                        const cropText = cropResult.data.text.trim();
+                        
+                        console.log('[Crop] Uyruğu crop OCR sonucu:', cropText);
+                        
+                        // Sadece harflerden oluşan, 3+ karakter uzunluğundaki metni al
+                        const cleanedCountry = cropText.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü\s]/g, '').trim();
+                        if (cleanedCountry.length >= 3) {
+                            extracted.uyrugu = cleanedCountry.toUpperCase();
+                            console.log('[Crop] Uyruğu bulundu:', extracted.uyrugu);
+                        }
+                        
+                        // PSM 7 başarısız olduysa PSM 8 (single word) dene
+                        if (!extracted.uyrugu) {
+                            await worker.setParameters({ tessedit_pageseg_mode: '8' });
+                            const cropResult2 = await worker.recognize(cropCanvas.toDataURL('image/jpeg', 0.95));
+                            const cropText2 = cropResult2.data.text.trim();
+                            
+                            console.log('[Crop] Uyruğu crop OCR (PSM 8) sonucu:', cropText2);
+                            
+                            const cleaned2 = cropText2.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü\s]/g, '').trim();
+                            if (cleaned2.length >= 3) {
+                                extracted.uyrugu = cleaned2.toUpperCase();
+                                console.log('[Crop] Uyruğu (PSM 8) bulundu:', extracted.uyrugu);
+                            }
+                        }
+                    }
+                } else {
+                    console.log('[Crop] Uyruğu/Nationality etiketi koordinatlarda bulunamadı.');
+                }
+            }
+            
+            await worker.terminate();
+            
+            populateForm(extracted);
+            
+            if (progressText) progressText.innerText = 'İşlem tamamlandı!';
             showToast('OCR işlemi başarıyla tamamlandı.', 'success');
             setActiveStep(3);
 
@@ -307,51 +551,271 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Field Extraction ---
+    // === 2. SAYFA KOORDİNAT BAZLI EXTRACTION ===
+    function extractPage2FromCoordinates(words) {
+        if (!words || words.length === 0) return;
+        
+        const sameRow = (w1, w2) => {
+            const h1 = w1.bbox.y1 - w1.bbox.y0;
+            const h2 = w2.bbox.y1 - w2.bbox.y0;
+            const tolerance = Math.max(h1, h2) * 0.6;
+            const center1 = (w1.bbox.y0 + w1.bbox.y1) / 2;
+            const center2 = (w2.bbox.y0 + w2.bbox.y1) / 2;
+            return Math.abs(center1 - center2) < tolerance;
+        };
+
+        // Adım 1: Sınırları belirle (Min Y ve Max Y)
+        let minY = 0;
+        let maxY = 999999;
+        
+        for (const w of words) {
+            // "KALACAĞI" kelimesi hedef bölümün başlığındadır
+            if (/KALACA[GĞ]I/i.test(w.text) && w.bbox.y0 > minY) {
+                minY = w.bbox.y1;
+                console.log('[Page2] Min Y sınırı bulundu (KALACAĞI):', minY);
+            }
+            // "ÖĞRENİM" kelimesi sonraki bölümün başlığındadır
+            else if (/[OÖ][GĞ]REN[Iİ]M/i.test(w.text) && w.bbox.y0 > minY) {
+                maxY = w.bbox.y0;
+                console.log('[Page2] Max Y sınırı bulundu (ÖĞRENİM):', maxY);
+                break;
+            }
+        }
+
+        console.log(`[Page2] Arama bölgesi: Y:${minY} - Y:${maxY}`);
+
+        // Bu bölgedeki kelimeler
+        const sectionWords = words.filter(w => w.bbox.y0 >= minY && w.bbox.y1 <= maxY);
+        const imageWidth = Math.max(...words.map(w => w.bbox.x1), 1);
+        const midpoint = imageWidth * 0.50;
+        
+        let foundAdres = '';
+        let foundTel = '';
+
+        // --- ADRES (Çoklu satır desteği) ---
+        let adresLabelY = -1;
+        let nextLabelY = maxY; // default to end of section
+        
+        for (const w of sectionWords) {
+            if (/^Adres|Address$/i.test(w.text)) {
+                adresLabelY = w.bbox.y0;
+            } else if (adresLabelY !== -1 && /^Ta[sş][iı]nma|Moving$/i.test(w.text) && w.bbox.y0 > adresLabelY) {
+                if (w.bbox.y0 < nextLabelY) nextLabelY = w.bbox.y0;
+            }
+        }
+
+        if (adresLabelY !== -1) {
+            const adresWords = sectionWords.filter(w => 
+                w.bbox.y0 >= adresLabelY - 5 && 
+                w.bbox.y1 <= nextLabelY + 5 &&
+                w.bbox.x0 < midpoint &&
+                w.bbox.x0 > imageWidth * 0.22 // Sadece değer sütununu al (sol sütundaki etiket artıkları "Ba" vs elenir)
+            ).sort((a, b) => {
+                if (Math.abs(a.bbox.y0 - b.bbox.y0) > 15) return a.bbox.y0 - b.bbox.y0;
+                return a.bbox.x0 - b.bbox.x0;
+            });
+            
+            if (adresWords.length > 0) {
+                foundAdres = adresWords.map(aw => aw.text).join(' ').trim();
+                // Adresin başındaki "Ba", "İSTANBUL", "," gibi OCR kalıntılarını agresif temizle
+                let cleanAdres = foundAdres.replace(/^(?:Ba\s*)?(?:[Iİ]STANBUL\s*)?[\s,]*/i, '').trim();
+                // En başa her zaman sabit "İSTANBUL, " ekle
+                foundAdres = "İSTANBUL, " + cleanAdres;
+                console.log('[Page2] Adres bulundu:', foundAdres);
+            }
+        }
+
+        // --- TELEFON 1 ---
+        // Telefon hücrelerinde Y hizası ("Telefon 1" vs "Phone 1") OCR'ı yanıltabilir. 
+        // Bu yüzden bölümün sağ tarafındaki (midpoint'ten büyük) 10 haneli tek numarayı arıyoruz.
+        for (const w of sectionWords) {
+            if (w.bbox.x0 > midpoint) {
+                const digits = w.text.replace(/\D/g, '');
+                if (digits.length >= 10) {
+                    const last10 = digits.slice(-10);
+                    // Başka alan (örn: T.C. kimlik) araya karışmasın diye 5 ile başlıyorsa al (veya standart 10 hane)
+                    if (last10.startsWith('5')) {
+                        foundTel = `0${last10.slice(0,3)} ${last10.slice(3,6)} ${last10.slice(6,8)} ${last10.slice(8,10)}`;
+                        console.log('[Page2] Telefon bulundu (sağ sütun rakam taraması):', foundTel);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (foundAdres) {
+            const adresField = document.getElementById('field-adres');
+            if (adresField) {
+                adresField.value = foundAdres.substring(0, 100);
+                adresField.classList.add('field-filled');
+            }
+        }
+
+        if (foundTel) {
+            const telField = document.getElementById('field-tel');
+            if (telField) {
+                telField.value = foundTel;
+                telField.classList.add('field-filled');
+            }
+        }
+    }
+
+    // === KOORDİNAT BAZLI EXTRACTION (1. Sayfa Tablo hücreleri için) ===
+    function extractFromCoordinates(words, extracted) {
+        if (!words || words.length === 0) return;
+        
+        // Yardımcı: iki kelime aynı hücrede/satırda mı? (Y koordinatı asimetrik toleransla)
+        const sameRow = (label, word) => {
+            const labelH = label.bbox.y1 - label.bbox.y0;
+            const labelCenter = (label.bbox.y0 + label.bbox.y1) / 2;
+            const wordCenter = (word.bbox.y0 + word.bbox.y1) / 2;
+            
+            const diff = wordCenter - labelCenter;
+            
+            // Hücre mantığı: Etiketin merkezi ile kelimenin merkezi arasındaki fark.
+            // Hücre yüksekliğini kapsayacak şekilde simetrik ve güvenli bir tolerans (1.8)
+            return Math.abs(diff) <= labelH * 1.8;
+        };
+        
+        // Form etiketleri — bunları değer olarak almayacağız (OCR hataları dahil)
+        const coordFormLabels = /^(di[gğ]er|other|citizenship|uyru[gğ]u|uyrul|nationality|nationali|nation|do[gğ]um(?:daki)?|born|birth|[öo]nceki|previous|surname|surmame|surnane|sumame|name|nane|mame|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|id|no|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi]?|ki[sş]i|personal|bilgi|in|of|for|the|that)$/i;
+        
+        // Resmin tahmini genişliği (words'den hesapla)
+        const imageWidth = Math.max(...words.map(w => w.bbox.x1), 1);
+        // Sol sütun değerleri kabaca ilk %50'de olur
+        const midpoint = imageWidth * 0.50;
+        
+        // OCR hatalarına karşı daha esnek kontrol (grabName mantığı ile aynı)
+        const cleanAndFixWord = (text) => {
+            const cleanedWord = text.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü'\-]/g, '');
+            if (cleanedWord.length < 2) return null;
+            return text.toUpperCase()
+                .replace(/[0]/g, 'O').replace(/[1]/g, 'I').replace(/[3]/g, 'E')
+                .replace(/[4]/g, 'A').replace(/[5]/g, 'S').replace(/[8]/g, 'B')
+                .replace(/[^A-ZÇĞİÖŞÜ'\-]/g, '');
+        };
+
+        // Yardımcı: etiket kelimesinin sağında, aynı satırda, midpoint'ten önce olan değer kelimeleri bul
+        const findValueWordsForLabel = (labelWord) => {
+            const validWords = words
+                .filter(w => {
+                    if (!sameRow(labelWord, w)) return false;
+                    if (w.bbox.x0 <= labelWord.bbox.x1) return false;
+                    // Resim kaymış/dar açılıysa midpoint sağa kayabilir. Tolerans 0.65'e çıkarıldı. (Sağ sütunu coordFormLabels engelliyor zaten)
+                    if (w.bbox.x0 > imageWidth * 0.65) return false;
+                    if (coordFormLabels.test(w.text)) return false;
+                    
+                    // OCR Halüsinasyon filtresi (Tekrar devrede, lekeleri engeller)
+                    const labelH = labelWord.bbox.y1 - labelWord.bbox.y0;
+                    const wH = w.bbox.y1 - w.bbox.y0;
+                    if (wH > labelH * 2.8 || wH < labelH * 0.3) return false;
+                    
+                    return cleanAndFixWord(w.text) !== null;
+                })
+                .sort((a, b) => a.bbox.x0 - b.bbox.x0)
+                .map(w => cleanAndFixWord(w.text));
+            return validWords.slice(0, 3); // En fazla 3 kelime al (isimler genelde 1-3 kelimedir)
+        };
+        
+        // Yardımcı: sağ sütun değerleri bul (Uyruğu gibi - midpoint sonrası)
+        const findRightColumnValues = (labelWord) => {
+            const validWords = words
+                .filter(w => {
+                    if (!sameRow(labelWord, w)) return false;
+                    if (w.bbox.x0 <= labelWord.bbox.x1) return false;
+                    if (coordFormLabels.test(w.text)) return false;
+                    
+                    const labelH = labelWord.bbox.y1 - labelWord.bbox.y0;
+                    const wH = w.bbox.y1 - w.bbox.y0;
+                    if (wH > labelH * 2.8 || wH < labelH * 0.3) return false;
+                    
+                    return cleanAndFixWord(w.text) !== null;
+                })
+                .sort((a, b) => a.bbox.x0 - b.bbox.x0)
+                .map(w => cleanAndFixWord(w.text));
+            return validWords.slice(0, 3);
+        };
+        
+        // --- ADI VE SOYADI (Kullanıcı isteğiyle OCR extraction kaldırıldı) ---
+        
+        // --- UYRUĞU ---
+        if (!extracted.uyrugu) {
+            for (const w of words) {
+                if (!/^Uyru[gğ]u$/i.test(w.text)) continue;
+                // "Diğer Uyruğu" ve "Doğumdaki Uyruğu" satırlarını atla
+                const hasDiger = words.some(other => 
+                    /^(Di[gğ]er|Do[gğ]um)/i.test(other.text) && sameRow(w, other)
+                );
+                if (hasDiger) continue;
+                
+                // Uyruğu sağ sütunda — midpoint kısıtlaması yok
+                const values = findRightColumnValues(w);
+                if (values.length > 0) {
+                    extracted.uyrugu = values.join(' ');
+                    console.log('[Koordinat] Uyruğu bulundu:', extracted.uyrugu);
+                    break;
+                }
+            }
+            
+            // Fallback: "Nationality" etiketinden de dene
+            if (!extracted.uyrugu) {
+                for (const w of words) {
+                    if (!/^Nationality$/i.test(w.text)) continue;
+                    // "Nationality in Born" satırını atla
+                    const hasIn = words.some(other => 
+                        /^in$/i.test(other.text) && sameRow(w, other) && other.bbox.x0 > w.bbox.x1
+                    );
+                    if (hasIn) continue;
+                    
+                    const values = findRightColumnValues(w);
+                    if (values.length > 0) {
+                        extracted.uyrugu = values.join(' ');
+                        console.log('[Koordinat] Uyruğu (Nationality) bulundu:', extracted.uyrugu);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // --- DOĞUM TARİHİ ---
+        if (!extracted.dogumTarihi) {
+            for (const w of words) {
+                if (!/^(Tarih[iı]?|Date|Birth)$/i.test(w.text)) continue;
+                
+                // Sağ sütunda olduğundan emin olalım (Kayıt Tarihi solda karışmasın, esneklik için 0.30)
+                if (w.bbox.x0 < imageWidth * 0.30) continue;
+
+                // Kelimenin sağında, aynı hizada olan kelimeleri topla
+                const dateWords = words.filter(other => 
+                    sameRow(w, other) && 
+                    other.bbox.x0 > w.bbox.x1
+                ).sort((a, b) => a.bbox.x0 - b.bbox.x0);
+                
+                const dateStr = dateWords.map(dw => dw.text).join(' ');
+                // OCR hatalarını düzelt (S->5, O->0, l/I->1, Z->2)
+                const cleanDate = dateStr.replace(/[OoQq]/g, '0').replace(/[Ss\$]/g, '5').replace(/[lI|]/g, '1').replace(/[Zz]/g, '2');
+                
+                const match = cleanDate.match(/(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/);
+                if (match) {
+                    extracted.dogumTarihi = `${match[1].padStart(2, '0')}.${match[2].padStart(2, '0')}.${match[3]}`;
+                    console.log('[Koordinat] Doğum Tarihi bulundu:', extracted.dogumTarihi);
+                    break;
+                }
+            }
+        }
+    }
+
     function extractFields(text) {
         // Normalize newlines for easier regex matching
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const fullText = lines.join('\n');
         
-        if (typeof isProcessingPage2 !== 'undefined' && isProcessingPage2) {
-            // Extract Tel No
-            const telMatch = fullText.match(/(?:0|\+90|90)?\s*[\(\s]*([5][0-9]{2})[\)\s]*([0-9]{3})[\s]*([0-9]{2})[\s]*([0-9]{2})/);
-            if (telMatch) {
-                const telField = document.getElementById('field-tel');
-                if (telField) {
-                    telField.value = `0${telMatch[1]} ${telMatch[2]} ${telMatch[3]} ${telMatch[4]}`;
-                    telField.classList.add('field-filled');
-                }
-            }
-
-            // Extract Address
-            let adresMatch = fullText.match(/(?:Adres|Address)[\s:;.-]*([^]*?)(?:Tel|Mail|E-posta|UETS|$)/i);
-            if (adresMatch && adresMatch[1].trim().length > 5) {
-                const adresField = document.getElementById('field-adres');
-                if (adresField) {
-                    adresField.value = adresMatch[1].replace(/\n/g, ' ').trim().substring(0, 100);
-                    adresField.classList.add('field-filled');
-                }
-            } else {
-                const istMatch = fullText.match(/.*?(İstanbul.*?)(?:Tel|Mail|$)/is);
-                if (istMatch && istMatch[1].length > 5) {
-                    const adresField = document.getElementById('field-adres');
-                    if (adresField) {
-                        adresField.value = istMatch[1].replace(/\n/g, ' ').substring(0, 100).trim();
-                        adresField.classList.add('field-filled');
-                    }
-                }
-            }
-            
-            isProcessingPage2 = false;
-            return;
-        }
-        
         const extracted = {
             basvuruNo: '', pasaportNo: '', adi: '', soyadi: '', uyrugu: '', dogumTarihi: ''
         };
 
-        // Known form label words — stops name extraction at right-column labels
-        const formLabels = /^(di[gğ]er|other|citizenship|uyru[gğ]u|nationality|do[gğ]um(?:daki)?|born|[öo]nceki|previous|surname|name|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi])$/i;
+        // Known form label words — stops name extraction at right-column labels (OCR hataları dahil)
+        const formLabels = /^(di[gğ]er|other|citizenship|uyru[gğ]u|uyrul|nationality|nationali|nation|do[gğ]um(?:daki)?|born|birth|[öo]nceki|previous|surname|surmame|surnane|sumame|name|nane|mame|father|mother|baba|anne|cinsiyet|gender|medeni|marital|uets|yeri|[üu]lkesi|country|kimlik|id|no|foreigner|place|foreign|date|tarihi|hali|status|biyo(?:metrik)?|number|document|belge|kay[ıi]t|registration|[iİ]kamet|ba[sş]vuru|randevu|talep|seyahat|travel|information|type|t[üu]r[üu]|foto[gğ]raf|numara|soyad[ıi]?|ad[ıi])$/i;
 
         // Helper: grab consecutive name words, stopping at form labels.
         // Tolerates 1 lowercase OCR error per word.
@@ -361,12 +825,25 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const word of words) {
                 if (result.length >= 4) break;
                 if (formLabels.test(word)) break;
-                const upperCount = (word.match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
-                const isNameWord = word.length >= 2
-                    && upperCount >= Math.max(1, word.length - 1)
-                    && /^[A-ZÇĞİÖŞÜa-zçğıöşü'\-]+$/.test(word);
+                
+                // OCR hatalarına karşı daha esnek kontrol: Kelime içindeki harf dışı karakterleri temizle
+                const cleanedWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü'\-]/g, '');
+                const isNameWord = cleanedWord.length >= 2;
+                
                 if (isNameWord) {
-                    result.push(word.toUpperCase());
+                    // OCR'da sık karışan rakamları harfe çevir
+                    let fixedWord = word.toUpperCase()
+                        .replace(/[0]/g, 'O')
+                        .replace(/[1]/g, 'I')
+                        .replace(/[3]/g, 'E')
+                        .replace(/[4]/g, 'A')
+                        .replace(/[5]/g, 'S')
+                        .replace(/[8]/g, 'B')
+                        .replace(/[^A-ZÇĞİÖŞÜ'\-]/g, '');
+                    
+                    if(fixedWord.length >= 2) {
+                        result.push(fixedWord);
+                    }
                 } else if (result.length > 0) {
                     break;
                 }
@@ -416,55 +893,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // ============================================
-        // 2. SOYADI — multi-word support
+        // 2. SOYADI VE ADI — OCR Extraction Kaldırıldı
         // ============================================
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (/\bSoyad[ıi]\b/i.test(line) && !/[öÖ]nceki/i.test(line)) {
-                const m = line.match(/\bSoyad[ıi]\b\s*(.*)/i);
-                const afterLabel = m ? m[1] : '';
-                const cleaned = afterLabel.replace(/^\/?\.?\s*Surname\s*/i, '');
-                const name = grabName(cleaned);
-                if (name.length >= 2) { extracted.soyadi = name; break; }
-
-                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-                    if (/^\/?\.?\s*Surname\s*$/i.test(lines[j])) continue;
-                    const nc = lines[j].replace(/^\s*\/?\.?\s*Surname\s*/i, '');
-                    const nn = grabName(nc);
-                    if (nn.length >= 2) { extracted.soyadi = nn; break; }
-                    break;
-                }
-                break;
-            }
-        }
-
-        // ============================================
-        // 3. ADI — multi-word, excludes Baba/Anne/Soy
-        // ============================================
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            if (/\bAd[ıi]\b/i.test(line) && !/baba|anne|soyad|[öÖ]nceki/i.test(line)) {
-                const m = line.match(/\bAd[ıi]\b\s*(.*)/i);
-                const afterLabel = m ? m[1] : '';
-                const cleaned = afterLabel.replace(/^\/?\.?\s*Name\s*/i, '');
-                const name = grabName(cleaned);
-                if (name.length >= 2) { extracted.adi = name; break; }
-
-                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
-                    if (/^\/?\.?\s*Name\s*$/i.test(lines[j])) continue;
-                    const nc = lines[j].replace(/^\s*\/?\.?\s*Name\s*/i, '');
-                    const nn = grabName(nc);
-                    if (nn.length >= 2) { extracted.adi = nn; break; }
-                    break;
-                }
-                break;
-            }
-        }
-
-        // Prevent duplicate
-        if (extracted.adi && extracted.adi === extracted.soyadi) {
-            extracted.soyadi = '';
-        }
 
         // ============================================
         // 4. UYRUĞU — standalone, skip Diğer/Doğumdaki
@@ -476,14 +906,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (/di[gğ]er|do[gğ]um/i.test(before)) continue;
 
             const after = fullText.substring(uM.index + uM[0].length, uM.index + uM[0].length + 150);
-            const cleaned = after.replace(/^[\s\n]*(?:Nationality)?[\s\n]*/i, '');
-            const countryMatch = cleaned.match(/^([A-ZÇĞİÖŞÜa-zçğıöşü]{3,}(?:\s+[A-ZÇĞİÖŞÜa-zçğıöşü]{2,})?)/);
-            if (countryMatch) {
-                const candidate = countryMatch[1].trim();
-                if (!formLabels.test(candidate.split(/\s+/)[0])) {
-                    extracted.uyrugu = candidate;
+            
+            // Tüm kelimeleri alıp aradaki etiketleri atlıyoruz
+            const words = after.split(/[\s\/:.-]+/).filter(w => w.length >= 2);
+            let validParts = [];
+            for (let word of words) {
+                if (formLabels.test(word)) {
+                    if (validParts.length > 0) break; // Ülke adından sonra etiket gelirse dur
+                    continue; // Başlangıçtaki etiketleri (örn: Foreign, ID, Number) atla
+                }
+                
+                if (/^[A-ZÇĞİÖŞÜa-zçğıöşü]+$/.test(word)) {
+                    validParts.push(word.toUpperCase());
+                } else if (validParts.length > 0) {
                     break;
                 }
+                
+                if (validParts.length >= 2) break; // En fazla 2 kelimelik ülkeler
+            }
+            
+            if (validParts.length > 0) {
+                extracted.uyrugu = validParts.join(' ');
+                break;
             }
         }
 
@@ -491,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. DOĞUM TARİHİ
         // ============================================
         const dobMatch = fullText.match(
-            /(?:Do[gğ]um\s*Tarihi|Date\s*of\s*Birth)[^\d]{0,30}(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/i
+            /(?:Do[gğ]um\s*Tarih[a-zıi]|Date\s*of\s*Birth|Born)[^\d]{0,30}(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/i
         );
         if (dobMatch) {
             extracted.dogumTarihi = `${dobMatch[1].padStart(2, '0')}.${dobMatch[2].padStart(2, '0')}.${dobMatch[3]}`;
@@ -528,7 +972,11 @@ document.addEventListener('DOMContentLoaded', () => {
             extracted.pasaportNo = lp + dp.replace(/[Oo]/g, '0').replace(/[Ss]/g, '5').replace(/[Zz]/g, '2').replace(/[l]/g, '1');
         }
 
-        populateForm(extracted);
+        // Garbage Collector: Reject overly long extractions
+        if (extracted.adi && extracted.adi.split(' ').length > 4) extracted.adi = '';
+        if (extracted.soyadi && extracted.soyadi.split(' ').length > 4) extracted.soyadi = '';
+
+        return extracted;
     }
 
     // --- Populate Form ---
@@ -548,8 +996,17 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const [key, value] of Object.entries(mapping)) {
             const field = fields[key];
             if (field && value) {
-                field.value = value;
-                field.classList.add('success');
+                if (field.tagName === 'SELECT') {
+                    // Select elemanı ise, değerin seçenekler arasında olup olmadığını kontrol et
+                    const optionExists = Array.from(field.options).some(opt => opt.value === value);
+                    if (optionExists) {
+                        field.value = value;
+                        field.classList.add('success');
+                    }
+                } else {
+                    field.value = value;
+                    field.classList.add('success');
+                }
             }
         }
     }
@@ -587,7 +1044,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const getVal = (field) => field ? field.value || ' ' : ' ';
             const vBasvuruNo = getVal(fields.basvuruNo);
             const vTeslim = getVal(fields.teslimTarihi);
-            const vYabanciKimlik = getVal(fields.yabanciKimlik);
+            const vYabanciKimlik = ' '; // Word tablosunda boş kalması için sabit boşluk gönderiliyor
             const vPasaportNo = getVal(fields.pasaportNo);
             const vAdi = getVal(fields.adi);
             const vSoyadi = getVal(fields.soyadi);
@@ -595,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const vDogum = getVal(fields.dogumTarihi);
             const vAdres = getVal(fields.adres);
             const vTel = getVal(fields.tel);
-            const vMail = getVal(fields.mail);
+            const vMail = "xxxx"; // Sabit 'xxxx' değeri (kullanıcı talebi)
 
             // Table Border Settings
             const tableBorder = {

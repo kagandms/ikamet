@@ -11,15 +11,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="index.css?v=1.0.14">
+    <link rel="stylesheet" href="index.css?v=1.0.24">
     
     <!-- CDNs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <!-- App Script -->
-    <script src="app.js?v=1.0.14" defer></script>
+    <script src="app.js?v=1.0.24" defer></script>
 </head>
 <body>
     <!-- Login Screen -->
@@ -43,7 +45,7 @@
                 <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="logo-img" onclick="document.getElementById('file-input').click()">
                 <div style="display: flex; align-items: center; justify-content: space-between; flex: 1;">
                     <h1>İkamet/Kimlik Kapak Hazırlayıcısı</h1>
-                    <span class="version-badge">v1.0.14</span>
+                    <span class="version-badge">v1.0.24</span>
                 </div>
             </div>
         </header>
@@ -124,10 +126,6 @@
                             </div>
                             
                             <div class="form-group">
-                                <label for="field-yabanci-kimlik">Yabancı Kimlik No</label>
-                                <input type="text" id="field-yabanci-kimlik" class="glass-input">
-                            </div>
-                            <div class="form-group">
                                 <label for="field-pasaport-no">Pasaport No</label>
                                 <input type="text" id="field-pasaport-no" class="glass-input">
                             </div>
@@ -143,7 +141,15 @@
                             
                             <div class="form-group">
                                 <label for="field-uyrugu">Uyruğu</label>
-                                <input type="text" id="field-uyrugu" class="glass-input">
+                                <select id="field-uyrugu" class="glass-input">
+                                    <option value="" disabled selected>Uyruk seçmek için tıklayınız</option>
+                                    <option value="TÜRKMENİSTAN">Türkmenistan</option>
+                                    <option value="ÖZBEKİSTAN">Özbekistan</option>
+                                    <option value="KIRGIZİSTAN">Kırgızistan</option>
+                                    <option value="RUSYA FEDERASYONU">Rusya Federasyonu</option>
+                                    <option value="AFGANİSTAN">Afganistan</option>
+                                    <option value="PAKİSTAN">Pakistan</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label for="field-dogum-tarihi">Doğum Tarihi</label>
@@ -155,13 +161,9 @@
                                 <input type="text" id="field-adres" class="glass-input">
                             </div>
                             
-                            <div class="form-group">
+                            <div class="form-group full-width">
                                 <label for="field-tel">Tel No</label>
                                 <input type="text" id="field-tel" class="glass-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="field-mail">Mail</label>
-                                <input type="email" id="field-mail" class="glass-input">
                             </div>
                         </div>
                         
@@ -197,6 +199,22 @@
         <footer class="app-footer">
             <p>Uluslararası Öğrenci Ofisi</p>
         </footer>
+    </div>
+
+    <!-- Cropper Modal -->
+    <div id="cropper-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <h2>Fotoğrafı Kırp</h2>
+            <p>Daha iyi sonuç almak için okunacak belgeyi çerçevenin içine alın.</p>
+            <div class="cropper-container-wrapper">
+                <img id="cropper-image" src="" alt="Kırpılacak Görüntü">
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="btn-crop-cancel" class="btn btn-outline">İptal</button>
+                <button type="button" id="btn-crop-skip" class="btn btn-secondary">Kırpmadan Devam Et</button>
+                <button type="button" id="btn-crop-confirm" class="btn btn-primary">Kırp ve Devam Et</button>
+            </div>
+        </div>
     </div>
 
     <!-- Toast Notifications -->
