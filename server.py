@@ -6,13 +6,17 @@ from flask_cors import CORS
 from paddleocr import PaddleOCR
 
 # Configure Flask to serve static files from the current directory
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__)
 # Enable CORS for all domains so app.js can access it
 CORS(app)
 
 @app.route('/')
 def serve_index():
-    return app.send_static_file('index.html')
+    return send_from_directory(os.getcwd(), 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory(os.getcwd(), path)
 
 # Initialize PaddleOCR
 # use_angle_cls=True to automatically detect orientation
