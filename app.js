@@ -364,11 +364,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // === 0. PADDLE OCR SUNUCUSU DENEMESİ ===
             try {
                 if (progressText) progressText.innerText = 'Sunucuya bağlanılıyor (PaddleOCR)...';
-                
+                // imageDataUrl'i Blob'a çevir (çünkü 'file' değişkeni bu fonksiyonda tanımlı değil)
+                const base64Data = imageDataUrl.split(',')[1];
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], {type: 'image/jpeg'});
+
                 const formData = new FormData();
-                formData.append('image', file);
-                
-                // 30 saniyelik zaman aşımı (telefon fotoları büyük olabilir)
+                formData.append('image', blob, 'form.jpg');
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000);
                 
