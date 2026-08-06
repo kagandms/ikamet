@@ -922,9 +922,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Strategy C: Generic YYYY-NN-NNNNNNN anchored to 20XX
+        // Strategy C: Generic YYYY-NN-NNNNNNN anchored to 20XX or 50XX (OCR error for 2)
         if (!extracted.basvuruNo) {
-            const genericMatch = fullText.match(/\b(20\d{2})\s*[-–]\s*(\d{2})\s*[-–]\s*(\d{5,7})\b/);
+            const genericMatch = fullText.match(/\b([25Zz]?0\d{2})\s*[-–]\s*(\d{2})\s*[-–]\s*(\d{5,7})\b/);
             if (genericMatch) {
                 extracted.basvuruNo = `${genericMatch[1]}-${genericMatch[2]}-${genericMatch[3]}`;
             }
@@ -935,8 +935,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const parts = extracted.basvuruNo.split('-');
             if (parts.length === 3) {
                 parts.forEach((p, idx) => {
-                    parts[idx] = p.replace(/[OoQq]/g, '0').replace(/[S\$]/g, '5').replace(/[Z]/g, '2').replace(/[l]/g, '1');
+                    parts[idx] = p.replace(/[OoQq]/g, '0').replace(/[S\$]/g, '5').replace(/[Zz]/g, '2').replace(/[l]/g, '1');
                 });
+                // 5 ile başlayan yılları (OCR hatası) 2'ye zorla
+                if (parts[0].startsWith('50') || parts[0].startsWith('Z0')) {
+                    parts[0] = '20' + parts[0].substring(2);
+                }
                 extracted.basvuruNo = parts.join('-');
             }
         }
@@ -957,8 +961,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (validParts.length > 0) break;
                     continue;
                 }
-                if (/^[A-ZÇĞİÖŞÜa-zçğıöşü]+$/.test(word)) {
-                    validParts.push(word.toUpperCase());
+                const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
+                if (cleanWord.length < 2) continue;
+                
+                // Formlarda isimler HER ZAMAN BÜYÜK HARFLE yazılır. 
+                // Eğer küçük harf varsa, bu muhtemelen OCR'ın eksik okuduğu bir etikettir (örn: "oğumda", "yruğu")
+                if (/^[A-ZÇĞİÖŞÜ]+$/.test(cleanWord)) {
+                    validParts.push(cleanWord);
+                } else {
+                    if (validParts.length > 0) break; // Küçük harfli kelime gördüğümüzde ismin bittiğini anlıyoruz
                 }
             }
             if (validParts.length > 0 && !extracted.soyadi) {
@@ -982,8 +993,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (validParts.length > 0) break;
                     continue;
                 }
-                if (/^[A-ZÇĞİÖŞÜa-zçğıöşü]+$/.test(word)) {
-                    validParts.push(word.toUpperCase());
+                const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
+                if (cleanWord.length < 2) continue;
+                
+                if (/^[A-ZÇĞİÖŞÜ]+$/.test(cleanWord)) {
+                    validParts.push(cleanWord);
+                } else {
+                    if (validParts.length > 0) break; // İsimlerin büyük harfle yazılma zorunluluğu kuralı
                 }
             }
             if (validParts.length > 0 && !extracted.adi) {
@@ -1041,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 6. PASAPORT NO (Belge No)
         // ============================================
         const belgeMatch = fullText.match(
-            /(?:Belge\s*N[oO0]|Number\s*of\s*Document)\s*[:\s\n]*([A-Za-z]?\d{5,12})/i
+            /(?:Belge\s*N[oO0]|Number\s*of\s*Document)[^\w]{0,10}([A-Z0-9ĞÜŞİÖÇğüşiöç]{5,15})/i
         );
         if (belgeMatch) {
             let pass = belgeMatch[1].toUpperCase().replace(/\s/g, '');
@@ -1063,9 +1079,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // OCR corrections for passport digits
         if (extracted.pasaportNo) {
-            const lp = extracted.pasaportNo.match(/^([A-Za-z]*)/)[0];
-            const dp = extracted.pasaportNo.substring(lp.length);
-            extracted.pasaportNo = lp + dp.replace(/[Oo]/g, '0').replace(/[Ss]/g, '5').replace(/[Zz]/g, '2').replace(/[l]/g, '1');
+            const letterMatch = extracted.pasaportNo.match(/^([A-Za-zĞÜŞİÖÇ]*)/);
+            if (letterMatch && letterMatch[0].length < extracted.pasaportNo.length) {
+                const lp = letterMatch[0];
+                const dp = extracted.pasaportNo.substring(lp.length);
+                extracted.pasaportNo = lp + dp.replace(/[Oo]/g, '0').replace(/[Ss]/g, '5').replace(/[Zz]/g, '2').replace(/[l]/g, '1');
+            }
         }
 
         // Garbage Collector: Reject overly long extractions
