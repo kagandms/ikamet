@@ -361,6 +361,66 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait a moment for UI to update
             await new Promise(resolve => setTimeout(resolve, 100));
 
+            // === 0. PADDLE OCR SUNUCUSU DENEMESİ ===
+            try {
+                if (progressText) progressText.innerText = 'Sunucuya bağlanılıyor (PaddleOCR)...';
+                
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                // 3 saniyelik zaman aşımı ile fetch
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                
+                const response = await fetch('http://localhost:5000/api/ocr', {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        const serverText = data.text;
+                        const serverWords = data.words;
+                        
+                        if (progressBar) progressBar.style.width = '90%';
+                        if (progressText) progressText.innerText = 'Veriler çözümleniyor...';
+                        
+                        const rawTextEl = document.getElementById('ocr-raw-text');
+                        if (rawTextEl) rawTextEl.textContent = serverText;
+                        
+                        if (typeof isProcessingPage2 !== 'undefined' && isProcessingPage2) {
+                            console.log('[OCR] 2. Sayfa Koordinat bazlı extraction (PaddleOCR)...');
+                            extractPage2FromCoordinates(serverWords);
+                            
+                            if (progressText) progressText.innerText = 'İşlem tamamlandı!';
+                            showToast('2. Sayfa bilgileri çıkarıldı (PaddleOCR).', 'success');
+                            setActiveStep(3);
+                            isProcessingPage2 = false;
+                            return;
+                        }
+                        
+                        const serverExtracted = extractFields(serverText);
+                        if (!serverExtracted.uyrugu) {
+                            extractFromCoordinates(serverWords, serverExtracted);
+                        }
+                        
+                        populateForm(serverExtracted);
+                        if (progressText) progressText.innerText = 'İşlem tamamlandı!';
+                        showToast('OCR işlemi başarıyla tamamlandı (PaddleOCR).', 'success');
+                        setActiveStep(3);
+                        return; // PaddleOCR başarılı olduysa fonksiyonu burada bitir, Tesseract'e geçme
+                    }
+                }
+            } catch (err) {
+                console.warn('PaddleOCR sunucusuna bağlanılamadı. Tesseract.js kullanılıyor...', err);
+                showToast('Python sunucusu kapalı, yerel OCR (Tesseract) kullanılıyor...', 'warning');
+            }
+
+            if (progressText) progressText.innerText = 'Yerel OCR başlatılıyor...';
+
             const worker = await Tesseract.createWorker('tur', 1, {
                 logger: m => {
                     if (m.status === 'recognizing text') {
