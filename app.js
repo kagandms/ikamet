@@ -693,8 +693,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const diff = wordCenter - labelCenter;
             
             // Hücre mantığı: Etiketin merkezi ile kelimenin merkezi arasındaki fark.
-            // Hücre yüksekliğini kapsayacak şekilde simetrik ve güvenli bir tolerans (1.8)
-            return Math.abs(diff) <= labelH * 1.8;
+            // Hücre yüksekliğini kapsayacak şekilde simetrik ve güvenli bir tolerans artırıldı (2.5)
+            return Math.abs(diff) <= labelH * 2.5;
         };
         
         // Form etiketleri — bunları değer olarak almayacağız (OCR hataları dahil)
@@ -958,8 +958,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
                 if (cleanWord.length < 2) continue;
                 
-                // İsimlerin tamamen küçük harf olmasını engelliyoruz ama OCR 1-2 harfi küçük okuduysa tolerans gösteriyoruz
-                const isMostlyUppercase = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= cleanWord.length - 2;
+                // Toleransı artır: Kelimenin en az %40'ı büyük harfse kabul et
+                const upperCount = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
+                const isMostlyUppercase = upperCount >= Math.floor(cleanWord.length * 0.4);
                 
                 if (isMostlyUppercase) {
                     validParts.push(cleanWord.toUpperCase());
@@ -992,7 +993,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
                 if (cleanWord.length < 2) continue;
                 
-                const isMostlyUppercase = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length >= cleanWord.length - 2;
+                const upperCount = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
+                const isMostlyUppercase = upperCount >= Math.floor(cleanWord.length * 0.4);
 
                 if (isMostlyUppercase) {
                     validParts.push(cleanWord.toUpperCase());
