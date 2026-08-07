@@ -337,77 +337,97 @@ document.addEventListener('DOMContentLoaded', () => {
             // Wait a moment for UI to update
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // === 0. PADDLE OCR SUNUCUSU DENEMESİ ===
+            // === GOOGLE CLOUD VISION API DENEMESİ ===
             try {
-                if (progressText) progressText.innerText = 'Sunucuya bağlanılıyor (PaddleOCR)...';
-                // imageDataUrl'i Blob'a çevir (çünkü 'file' değişkeni bu fonksiyonda tanımlı değil)
-                const base64Data = imageDataUrl.split(',')[1];
-                const byteCharacters = atob(base64Data);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                let apiKey = localStorage.getItem('gcv_api_key');
+                if (!apiKey) {
+                    apiKey = prompt('Lütfen Google Cloud Vision API Anahtarınızı girin:');
+                    if (apiKey) {
+                        localStorage.setItem('gcv_api_key', apiKey.trim());
+                    } else {
+                        throw new Error('API Anahtarı girilmediği için işlem iptal edildi.');
+                    }
                 }
-                const byteArray = new Uint8Array(byteNumbers);
-                const blob = new Blob([byteArray], {type: 'image/jpeg'});
-
-                const formData = new FormData();
-                formData.append('image', blob, 'form.jpg');
+                if (progressText) progressText.innerText = 'Google Cloud Vision\'a bağlanılıyor...';
+                const base64Data = imageDataUrl.split(',')[1];
+                const requestBody = {
+                    requests: [
+                        {
+                            image: { content: base64Data },
+                            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }]
+                        }
+                    ]
+                };
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 120000);
-                
-                const response = await fetch('/api/ocr', {
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+                const response = await fetch(https://vision.googleapis.com/v1/images:annotate?key= + apiKey, {
                     method: 'POST',
-                    body: formData,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
-                
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.success) {
-                        const serverText = data.text;
-                        const serverWords = data.words;
-                        
+                    if (data.responses && data.responses[0] && data.responses[0].textAnnotations) {
+                        const annotations = data.responses[0].textAnnotations;
+                        const serverText = annotations[0].description;
+                        const serverWords = [];
+                        for (let i = 1; i < annotations.length; i++) {
+                            const word = annotations[i];
+                            const vertices = word.boundingPoly.vertices;
+                            const xs = vertices.map(v => v.x || 0);
+                            const ys = vertices.map(v => v.y || 0);
+                            serverWords.push({
+                                text: word.description,
+                                bbox: {
+                                    x0: Math.min(...xs),
+                                    y0: Math.min(...ys),
+                                    x1: Math.max(...xs),
+                                    y1: Math.max(...ys)
+                                },
+                                confidence: 0.99
+                            });
+                        }
                         if (progressBar) progressBar.style.width = '90%';
                         if (progressText) progressText.innerText = 'Veriler çözümleniyor...';
-                        
                         const rawTextEl = document.getElementById('ocr-raw-text');
                         if (rawTextEl) rawTextEl.textContent = serverText;
-                        
                         if (typeof isProcessingPage2 !== 'undefined' && isProcessingPage2) {
-                            console.log('[OCR] 2. Sayfa Koordinat bazlı extraction (PaddleOCR)...');
+                            console.log('[OCR] 2. Sayfa Koordinat bazlı extraction (Google Vision)...');
                             extractPage2FromCoordinates(serverWords);
-                            
                             if (progressText) progressText.innerText = 'İşlem tamamlandı!';
-                            showToast('2. Sayfa bilgileri çıkarıldı (PaddleOCR).', 'success');
+                            showToast('2. Sayfa bilgileri çıkarıldı.', 'success');
                             setActiveStep(3);
                             isProcessingPage2 = false;
                             return;
                         }
-                        
                         const serverExtracted = extractFields(serverText);
                         if (!serverExtracted.uyrugu) {
                             extractFromCoordinates(serverWords, serverExtracted);
                         }
-                        
                         populateForm(serverExtracted);
                         if (progressText) progressText.innerText = 'İşlem tamamlandı!';
-                        showToast('OCR işlemi başarıyla tamamlandı (PaddleOCR).', 'success');
+                        showToast('OCR işlemi başarıyla tamamlandı.', 'success');
                         setActiveStep(3);
-                        return; // PaddleOCR başarılı olduysa fonksiyonu burada bitir, Tesseract'e geçme
+                        return;
                     } else {
-                        throw new Error(data.error || 'Bilinmeyen sunucu hatası (success: false)');
+                        throw new Error('Resimde metin bulunamadı veya geçersiz format.');
                     }
                 } else {
                     let errMsg = response.statusText;
                     try {
                         const errData = await response.json();
-                        if (errData.error) errMsg = errData.error;
+                        if (errData.error && errData.error.message) errMsg = errData.error.message;
                     } catch (e) {}
-                    throw new Error(`HTTP ${response.status}: ${errMsg}`);
+                    if (response.status === 400 || response.status === 403) {
+                        localStorage.removeItem('gcv_api_key');
+                        errMsg += ' (API Anahtarı geçersiz olabilir, silindi. Lütfen tekrar deneyin.)';
+                    }
+                    throw new Error(HTTP : );
                 }
             } catch (err) {
-                console.error('PaddleOCR sunucusuna bağlanılamadı.', err);
+                console.error('Google Vision API Hatası:', err);
                 throw err;
             }
         } catch (error) {
