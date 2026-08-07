@@ -992,7 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
         if (belgeMatch) {
             let pass = belgeMatch[1].toUpperCase().replace(/\s/g, '');
-            if (pass.length >= 5 && !/^INFORMATION$/i.test(pass)) {
+            if (pass.length >= 5 && !/^INFORMATION$/i.test(pass) && !/^NUMBER$/i.test(pass)) {
                 extracted.pasaportNo = pass;
             }
         }
