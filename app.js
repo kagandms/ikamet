@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Resize if width > 3000px
         let width = img.width;
         let height = img.height;
-        const MAX_WIDTH = 3000;
+        const MAX_WIDTH = 1800;
         
         if (width > MAX_WIDTH) {
             const ratio = MAX_WIDTH / width;
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData();
                 formData.append('image', blob, 'form.jpg');
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
                 
                 const response = await fetch('/api/ocr', {
                     method: 'POST',
