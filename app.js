@@ -420,7 +420,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast('OCR işlemi başarıyla tamamlandı (PaddleOCR).', 'success');
                         setActiveStep(3);
                         return; // PaddleOCR başarılı olduysa fonksiyonu burada bitir, Tesseract'e geçme
+                    } else {
+                        throw new Error(data.error || 'Bilinmeyen sunucu hatası (success: false)');
                     }
+                } else {
+                    throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
                 }
             } catch (err) {
                 console.warn('PaddleOCR sunucusuna bağlanılamadı. Tesseract.js kullanılıyor...', err);
