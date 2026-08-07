@@ -829,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- ADI VE SOYADI ---
         if (!extracted.soyadi) {
             for (const w of words) {
-                if (!/Soyad[iı]?/i.test(w.text) && !/Surname/i.test(w.text)) continue;
+                if (!/Soyad[ıiIİ]?/i.test(w.text) && !/Surname/i.test(w.text)) continue;
                 const values = findValueWordsForLabel(w);
                 if (values.length > 0) {
                     extracted.soyadi = values.join(' ');
@@ -841,7 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (!extracted.adi) {
             for (const w of words) {
-                if (!/Ad[iı]?/i.test(w.text) && !/Name/i.test(w.text)) continue;
+                if (!/Ad[ıiIİ]?/i.test(w.text) && !/Name/i.test(w.text)) continue;
                 const values = findValueWordsForLabel(w);
                 if (values.length > 0) {
                     extracted.adi = values.join(' ');
@@ -1013,7 +1013,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============================================
 
         // Soyadı
-        const soyadiRegex = /(?:Soyad[iı]?|Surname)/gi;
+        // Soyadı
+        const soyadiRegex = /(?:Soyad[ıiIİ]?|Surname)/gi;
         let sM;
         while ((sM = soyadiRegex.exec(fullText)) !== null) {
             const after = fullText.substring(sM.index + sM[0].length, sM.index + sM[0].length + 150);
@@ -1027,15 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
                 if (cleanWord.length < 2) continue;
                 
-                // Toleransı artır: Kelimenin en az %40'ı büyük harfse kabul et
-                const upperCount = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
-                const isMostlyUppercase = upperCount >= Math.floor(cleanWord.length * 0.4);
-                
-                if (isMostlyUppercase) {
-                    validParts.push(cleanWord.toUpperCase());
-                } else {
-                    if (validParts.length > 0) break; 
-                }
+                validParts.push(cleanWord.toLocaleUpperCase('tr-TR'));
             }
             if (validParts.length > 0 && !extracted.soyadi) {
                 extracted.soyadi = validParts.slice(0, 3).join(' ');
@@ -1044,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Adı
-        const adiRegex = /(?:Ad[iı]?|Name)/gi;
+        const adiRegex = /(?:Ad[ıiIİ]?|Name)/gi;
         let aM;
         while ((aM = adiRegex.exec(fullText)) !== null) {
             const before = fullText.substring(Math.max(0, aM.index - 15), aM.index);
@@ -1062,14 +1055,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cleanWord = word.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '');
                 if (cleanWord.length < 2) continue;
                 
-                const upperCount = (cleanWord.match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
-                const isMostlyUppercase = upperCount >= Math.floor(cleanWord.length * 0.4);
-
-                if (isMostlyUppercase) {
-                    validParts.push(cleanWord.toUpperCase());
-                } else {
-                    if (validParts.length > 0) break; 
-                }
+                validParts.push(cleanWord.toLocaleUpperCase('tr-TR'));
             }
             if (validParts.length > 0 && !extracted.adi) {
                 extracted.adi = validParts.slice(0, 3).join(' ');
@@ -1116,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. DOĞUM TARİHİ
         // ============================================
         const dobMatch = fullText.match(
-            /(?:Do[gğ]um\s*Tarih[a-zıi]|Date\s*of\s*Birth|Born)[^\d]{0,120}(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/i
+            /(?:Do[gğ]um|Date\s*of\s*Birth|Born)[^\d]{0,120}(3[01]|[12]\d|0?[1-9])\s*[/.\-\s]+\s*(1[0-2]|0?[1-9])\s*[/.\-\s]+\s*(\d{4})/i
         );
         if (dobMatch) {
             extracted.dogumTarihi = `${dobMatch[1].padStart(2, '0')}.${dobMatch[2].padStart(2, '0')}.${dobMatch[3]}`;
