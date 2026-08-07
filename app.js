@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formData = new FormData();
                 formData.append('image', blob, 'form.jpg');
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
                 
                 const response = await fetch('/api/ocr', {
                     method: 'POST',
