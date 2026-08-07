@@ -50,7 +50,7 @@ def process_image():
             
         # Run OCR
         print(f"Processing image {file.filename} with shape {img.shape}")
-        result = ocr.ocr(img, cls=True)
+        result = ocr.ocr(img)
         
         # Format the output for the frontend
         # result format: [[[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], ("text", confidence)], ...]
