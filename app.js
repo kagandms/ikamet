@@ -462,7 +462,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error("OCR Error:", error);
-            showToast('OCR işlemi başarısız. Lütfen daha net bir fotoğraf yükleyin.', 'error');
+            let userMsg = error.message ? error.message : 'OCR işlemi başarısız. Lütfen daha net bir fotoğraf yükleyin.';
+            // Eğer hata çok uzunsa kısalt (toast'ta sığması için)
+            if (userMsg.length > 150) userMsg = userMsg.substring(0, 150) + '...';
+            showToast(userMsg, 'error');
             setActiveStep(1);
         }
     }
