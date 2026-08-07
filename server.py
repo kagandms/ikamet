@@ -23,7 +23,7 @@ def serve_static(path):
 # lang='tr' for Turkish language support
 try:
     print("Initializing PaddleOCR (this may download models on first run)...")
-    ocr = PaddleOCR(use_angle_cls=True, lang='tr')
+    ocr = PaddleOCR(use_angle_cls=True, lang='tr', enable_mkldnn=False)
 except Exception as e:
     print(f"Error initializing PaddleOCR: {e}")
     ocr = None
