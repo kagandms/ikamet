@@ -1,5 +1,30 @@
-﻿// Wait for DOM to load
+// Wait for DOM to load
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Login System ---
+    const loginOverlay = document.getElementById('login-overlay');
+    const appContent = document.getElementById('app-content');
+    const loginPassword = document.getElementById('login-password');
+    const loginError = document.getElementById('login-error');
+
+    window.checkLogin = function() {
+        if (loginPassword.value === 'tapşıranlar61') {
+            sessionStorage.setItem('auth', 'true');
+            loginOverlay.style.display = 'none';
+            appContent.style.display = 'block';
+        } else {
+            loginError.style.display = 'block';
+            loginPassword.value = '';
+        }
+    };
+
+    if (sessionStorage.getItem('auth') === 'true') {
+        loginOverlay.style.display = 'none';
+        appContent.style.display = 'block';
+    } else {
+        loginOverlay.style.display = 'flex';
+        appContent.style.display = 'none';
+    }
+
     // --- DOM Elements ---
     const uploadZone = document.getElementById('upload-zone');
     const fileInput = document.getElementById('file-input');
@@ -348,36 +373,57 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error('API Anahtarı girilmediği için işlem iptal edildi.');
                     }
                 }
+                
                 if (progressText) progressText.innerText = 'Google Cloud Vision\'a bağlanılıyor...';
+                
                 const base64Data = imageDataUrl.split(',')[1];
+                
                 const requestBody = {
                     requests: [
                         {
-                            image: { content: base64Data },
-                            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }]
+                            image: {
+                                content: base64Data
+                            },
+                            features: [
+                                {
+                                    type: "DOCUMENT_TEXT_DETECTION"
+                                }
+                            ]
                         }
                     ]
                 };
+
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000);
-                const response = await fetch(https://vision.googleapis.com/v1/images:annotate?key= + apiKey, {
+                
+                const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify(requestBody),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    
                     if (data.responses && data.responses[0] && data.responses[0].textAnnotations) {
                         const annotations = data.responses[0].textAnnotations;
+                        
+                        // annotations[0] contains the full text
                         const serverText = annotations[0].description;
+                        
+                        // Map the rest of the annotations to serverWords
                         const serverWords = [];
                         for (let i = 1; i < annotations.length; i++) {
                             const word = annotations[i];
                             const vertices = word.boundingPoly.vertices;
+                            // Google Vision returns x and y, which might be undefined if 0
                             const xs = vertices.map(v => v.x || 0);
                             const ys = vertices.map(v => v.y || 0);
+                            
                             serverWords.push({
                                 text: word.description,
                                 bbox: {
@@ -389,23 +435,29 @@ document.addEventListener('DOMContentLoaded', () => {
                                 confidence: 0.99
                             });
                         }
+                        
                         if (progressBar) progressBar.style.width = '90%';
                         if (progressText) progressText.innerText = 'Veriler çözümleniyor...';
+                        
                         const rawTextEl = document.getElementById('ocr-raw-text');
                         if (rawTextEl) rawTextEl.textContent = serverText;
+                        
                         if (typeof isProcessingPage2 !== 'undefined' && isProcessingPage2) {
                             console.log('[OCR] 2. Sayfa Koordinat bazlı extraction (Google Vision)...');
                             extractPage2FromCoordinates(serverWords);
+                            
                             if (progressText) progressText.innerText = 'İşlem tamamlandı!';
                             showToast('2. Sayfa bilgileri çıkarıldı.', 'success');
                             setActiveStep(3);
                             isProcessingPage2 = false;
                             return;
                         }
+                        
                         const serverExtracted = extractFields(serverText);
                         if (!serverExtracted.uyrugu) {
                             extractFromCoordinates(serverWords, serverExtracted);
                         }
+                        
                         populateForm(serverExtracted);
                         if (progressText) progressText.innerText = 'İşlem tamamlandı!';
                         showToast('OCR işlemi başarıyla tamamlandı.', 'success');
@@ -420,16 +472,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         const errData = await response.json();
                         if (errData.error && errData.error.message) errMsg = errData.error.message;
                     } catch (e) {}
+                    
                     if (response.status === 400 || response.status === 403) {
                         localStorage.removeItem('gcv_api_key');
-                        errMsg += ' (API Anahtarı geçersiz olabilir, silindi. Lütfen tekrar deneyin.)';
+                        errMsg += " (API Anahtarı geçersiz olabilir, silindi. Lütfen tekrar deneyin.)";
                     }
-                    throw new Error(HTTP : );
+                    throw new Error(`HTTP ${response.status}: ${errMsg}`);
                 }
             } catch (err) {
                 console.error('Google Vision API Hatası:', err);
                 throw err;
             }
+
         } catch (error) {
             console.error("OCR Error:", error);
             showToast('OCR işlemi başarısız. Lütfen daha net bir fotoğraf yükleyin.', 'error');
