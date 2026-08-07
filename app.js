@@ -424,7 +424,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(data.error || 'Bilinmeyen sunucu hatası (success: false)');
                     }
                 } else {
-                    throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+                    let errMsg = response.statusText;
+                    try {
+                        const errData = await response.json();
+                        if (errData.error) errMsg = errData.error;
+                    } catch (e) {}
+                    throw new Error(`HTTP ${response.status}: ${errMsg}`);
                 }
             } catch (err) {
                 console.warn('PaddleOCR sunucusuna bağlanılamadı. Tesseract.js kullanılıyor...', err);
