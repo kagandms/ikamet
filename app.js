@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnRescan = document.getElementById('btn-rescan');
     const btnClear = document.getElementById('btn-clear');
     const btnDownload = document.getElementById('btn-download');
+    const btnCopyOcr = document.getElementById('btn-copy-ocr');
 
     // Form Fields
     const fields = {
@@ -1186,6 +1187,22 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRescan.addEventListener('click', () => {
             if (fileInput) fileInput.value = '';
             setActiveStep(1);
+        });
+    }
+
+    if (btnCopyOcr) {
+        btnCopyOcr.addEventListener('click', () => {
+            const rawText = document.getElementById('ocr-raw-text').innerText;
+            if (rawText) {
+                navigator.clipboard.writeText(rawText).then(() => {
+                    showToast('OCR metni kopyalandı!', 'success');
+                }).catch(err => {
+                    console.error('Kopyalama hatası:', err);
+                    showToast('Kopyalama başarısız oldu.', 'error');
+                });
+            } else {
+                showToast('Kopyalanacak metin yok.', 'warning');
+            }
         });
     }
 
