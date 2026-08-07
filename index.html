@@ -1,9 +1,9 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ä°kamet Ä°zni OCR Sistemi - Ä°stanbul TopkapÄ± Ãœniversitesi</title>
+    <title>İkamet İzni OCR Sistemi - İstanbul Topkapı Üniversitesi</title>
     
     <!-- PWA Manifest & Icons -->
     <link rel="manifest" href="manifest.json">
@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="icon.jpg">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="TopkapÄ± Ä°kamet">
+    <meta name="apple-mobile-web-app-title" content="Topkapı İkamet">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="index.css?v=1.61.3">
+    <link rel="stylesheet" href="index.css?v=2.0.0">
     
     <!-- CDNs -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
@@ -29,15 +29,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     
     <!-- App Script -->
-    <script src="app.js?v=1.61.3" defer></script>
+    <script src="app.js?v=2.0.0" defer></script>
 </head>
 <body>
     <!-- Main App Content -->
     <div id="app-content">
             <div class="header-content">
-                <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="Ä°stanbul TopkapÄ± Ãœniversitesi" class="logo-img" onclick="document.getElementById('file-input').click()">
+                <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="logo-img" onclick="document.getElementById('file-input').click()">
                 <div style="display: flex; align-items: center; justify-content: space-between; flex: 1;">
-                    <h1>Ä°kamet/Kimlik Kapak HazÄ±rlayÄ±cÄ±sÄ±</h1>
+                    <h1>İkamet/Kimlik Kapak Hazırlayıcısı</h1>
                     <span class="version-badge">v1.61.13</span>
                 </div>
             </div>
@@ -48,17 +48,17 @@
             <div class="step-indicators">
                 <div id="indicator-1" class="step active" data-step="1">
                     <div class="step-circle">1</div>
-                    <div class="step-label">YÃ¼kle</div>
+                    <div class="step-label">Yükle</div>
                 </div>
                 <div class="step-line"></div>
                 <div id="indicator-2" class="step" data-step="2">
                     <div class="step-circle">2</div>
-                    <div class="step-label">Ä°ÅŸleniyor</div>
+                    <div class="step-label">İşleniyor</div>
                 </div>
                 <div class="step-line"></div>
                 <div id="indicator-3" class="step" data-step="3">
                     <div class="step-circle">3</div>
-                    <div class="step-label">SonuÃ§</div>
+                    <div class="step-label">Sonuç</div>
                 </div>
             </div>
 
@@ -72,24 +72,24 @@
                                 <polyline points="17 8 12 3 7 8"></polyline>
                                 <line x1="12" y1="3" x2="12" y2="15"></line>
                             </svg>
-                            <p>Formu buraya sÃ¼rÃ¼kleyin veya yÃ¼klemek iÃ§in tÄ±klayÄ±n</p>
+                            <p>Formu buraya sürükleyin veya yüklemek için tıklayın</p>
                             <input type="file" id="file-input" accept="image/*" class="hidden-input">
                         </div>
-                        <img id="preview-image" alt="Ã–nizleme" class="hidden">
+                        <img id="preview-image" alt="Önizleme" class="hidden">
                     </div>
                     
                     <div class="action-buttons">
                         <button class="btn btn-primary" onclick="document.getElementById('file-input').removeAttribute('capture'); document.getElementById('file-input').click()">
                             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                            FotoÄŸraf YÃ¼kle
+                            Fotoğraf Yükle
                         </button>
                         <button id="camera-btn" class="btn btn-secondary">
                             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                            Kamera AÃ§
+                            Kamera Aç
                         </button>
                         <button onclick="window.location.href = window.location.pathname + '?v=' + new Date().getTime();" class="btn btn-accent" style="width: 100%; margin-top: 0.5rem; padding: 0.75rem;">
                             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                            Sistemi GÃ¼ncelle
+                            Sistemi Güncelle
                         </button>
                     </div>
                 </div>
@@ -103,18 +103,18 @@
                     <div class="progress-container">
                         <div id="progress-bar" class="progress-bar"></div>
                     </div>
-                    <p class="processing-subtitle">Sistem metinleri Ã§Ã¶zÃ¼mlÃ¼yor, lÃ¼tfen bekleyin.</p>
+                    <p class="processing-subtitle">Sistem metinleri çözümlüyor, lütfen bekleyin.</p>
                 </div>
             </section>
 
             <!-- Step 3: Results Section -->
             <section id="step-3" class="step-content">
                 <div class="card glass-card result-form">
-                    <h2 class="subtitle">Kontrol ve DÃ¼zenleme</h2>
+                    <h2 class="subtitle">Kontrol ve Düzenleme</h2>
                     <form id="data-form">
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="field-basvuru-no">e-Ä°kamet BaÅŸvuru No</label>
+                                <label for="field-basvuru-no">e-İkamet Başvuru No</label>
                                 <input type="text" id="field-basvuru-no" class="glass-input">
                             </div>
                             <div class="form-group">
@@ -128,30 +128,30 @@
                             </div>
                             
                             <div class="form-group">
-                                <label for="field-adi">AdÄ±</label>
+                                <label for="field-adi">Adı</label>
                                 <input type="text" id="field-adi" class="glass-input">
                             </div>
                             <div class="form-group">
-                                <label for="field-soyadi">SoyadÄ±</label>
+                                <label for="field-soyadi">Soyadı</label>
                                 <input type="text" id="field-soyadi" class="glass-input">
                             </div>
                             
                             <div class="form-group">
-                                <label for="field-uyrugu">UyruÄŸu</label>
+                                <label for="field-uyrugu">Uyruğu</label>
                                 <select id="field-uyrugu" class="glass-input">
-                                    <option value="" disabled selected>Uyruk seÃ§mek iÃ§in tÄ±klayÄ±nÄ±z</option>
-                                    <option value="TÃœRKMENÄ°STAN">TÃ¼rkmenistan</option>
-                                    <option value="Ã–ZBEKÄ°STAN">Ã–zbekistan</option>
-                                    <option value="KIRGIZÄ°STAN">KÄ±rgÄ±zistan</option>
+                                    <option value="" disabled selected>Uyruk seçmek için tıklayınız</option>
+                                    <option value="TÜRKMENİSTAN">Türkmenistan</option>
+                                    <option value="ÖZBEKİSTAN">Özbekistan</option>
+                                    <option value="KIRGIZİSTAN">Kırgızistan</option>
                                     <option value="RUSYA FEDERASYONU">Rusya Federasyonu</option>
-                                    <option value="AFGANÄ°STAN">Afganistan</option>
-                                    <option value="PAKÄ°STAN">Pakistan</option>
-                                    <option value="OTHER">DiÄŸer (Manuel Yaz)...</option>
+                                    <option value="AFGANİSTAN">Afganistan</option>
+                                    <option value="PAKİSTAN">Pakistan</option>
+                                    <option value="OTHER">Diğer (Manuel Yaz)...</option>
                                 </select>
-                                <input type="text" id="field-uyrugu-other" class="glass-input" style="display: none; margin-top: 10px;" placeholder="Uyruk yazÄ±nÄ±z...">
+                                <input type="text" id="field-uyrugu-other" class="glass-input" style="display: none; margin-top: 10px;" placeholder="Uyruk yazınız...">
                             </div>
                             <div class="form-group">
-                                <label for="field-dogum-tarihi">DoÄŸum Tarihi</label>
+                                <label for="field-dogum-tarihi">Doğum Tarihi</label>
                                 <input type="text" id="field-dogum-tarihi" class="glass-input">
                             </div>
                             
@@ -167,7 +167,7 @@
                         </div>
                         
                         <details class="ocr-debug">
-                            <summary>ğŸ” Ham OCR Metni (Hata AyÄ±klama)</summary>
+                            <summary>?? Ham OCR Metni (Hata Ayıklama)</summary>
                             <div style="text-align: right; margin-bottom: 5px; padding-top: 5px;">
                                 <button type="button" id="btn-copy-ocr" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">Metni Kopyala</button>
                             </div>
@@ -181,16 +181,16 @@
                             <div class="page2-actions">
                                 <div id="mini-dropzone" class="mini-dropzone">
                                     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-right: 5px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                    <span>2. Sayfa SÃ¼rÃ¼kle</span>
+                                    <span>2. Sayfa Sürükle</span>
                                 </div>
                                 <button type="button" id="btn-scan-page2" class="btn btn-primary" onclick="document.getElementById('file-input-page2').click()">
                                     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                                    2. Sayfa (Adres/Tel) SeÃ§
+                                    2. Sayfa (Adres/Tel) Seç
                                 </button>
                             </div>
                             <button type="button" id="btn-download" class="btn btn-accent">
                                 <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                                Word Ä°ndir
+                                Word İndir
                             </button>
                         </div>
                     </form>
@@ -199,22 +199,22 @@
         </main>
 
         <footer class="app-footer">
-            <p>UluslararasÄ± Ã–ÄŸrenci Ofisi</p>
+            <p>Uluslararası Öğrenci Ofisi</p>
         </footer>
     </div>
 
     <!-- Cropper Modal -->
     <div id="cropper-modal" class="modal-overlay" style="display: none;">
         <div class="modal-card">
-            <h2>FotoÄŸrafÄ± KÄ±rp</h2>
-            <p>Daha iyi sonuÃ§ almak iÃ§in okunacak belgeyi Ã§erÃ§evenin iÃ§ine alÄ±n.</p>
+            <h2>Fotoğrafı Kırp</h2>
+            <p>Daha iyi sonuç almak için okunacak belgeyi çerçevenin içine alın.</p>
             <div class="cropper-container-wrapper">
-                <img id="cropper-image" src="" alt="KÄ±rpÄ±lacak GÃ¶rÃ¼ntÃ¼">
+                <img id="cropper-image" src="" alt="Kırpılacak Görüntü">
             </div>
             <div class="modal-actions">
-                <button type="button" id="btn-crop-cancel" class="btn btn-outline">Ä°ptal</button>
-                <button type="button" id="btn-crop-skip" class="btn btn-secondary">KÄ±rpmadan Devam Et</button>
-                <button type="button" id="btn-crop-confirm" class="btn btn-primary">KÄ±rp ve Devam Et</button>
+                <button type="button" id="btn-crop-cancel" class="btn btn-outline">İptal</button>
+                <button type="button" id="btn-crop-skip" class="btn btn-secondary">Kırpmadan Devam Et</button>
+                <button type="button" id="btn-crop-confirm" class="btn btn-primary">Kırp ve Devam Et</button>
             </div>
         </div>
     </div>
