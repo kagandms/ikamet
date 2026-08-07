@@ -515,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- ADRES (Çoklu satır desteği) ---
         let adresLabelY = -1;
         let nextLabelY = maxY; // default to end of section
+        let rightColumnX = midpoint; // Sağ sütun X sınırı (Telefon vs. adresin içine girmesin diye)
         
         for (const w of sectionWords) {
             if (/^Adres|Address$/i.test(w.text)) {
@@ -524,13 +525,18 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (adresLabelY !== -1 && /^Ta[sŞş][iıI]nma|Moving$/i.test(w.text) && w.bbox.y0 > adresLabelY) {
                 if (w.bbox.y0 < nextLabelY) nextLabelY = w.bbox.y0;
             }
+            
+            // Eğer "Telefon" veya "Phone" kelimesi varsa, Adres bölgesinin sağ sınırını buna göre daralt
+            if (/^(?:Telefon|Phone|Tel|E\s*Posta|E-mail)$/i.test(w.text)) {
+                if (w.bbox.x0 < rightColumnX) rightColumnX = w.bbox.x0;
+            }
         }
 
         if (adresLabelY !== -1) {
             const adresWords = sectionWords.filter(w => 
                 w.bbox.y0 >= adresLabelY - 5 && 
                 w.bbox.y1 <= nextLabelY + 5 &&
-                w.bbox.x0 < midpoint &&
+                w.bbox.x0 < rightColumnX - 5 && // Sağ sütundaki Telefon/Phone etiketleri elenir
                 w.bbox.x0 > imageWidth * 0.22 // Sadece değer sütununu al (sol sütundaki etiket artıkları "Ba" vs elenir)
             ).sort((a, b) => {
                 if (Math.abs(a.bbox.y0 - b.bbox.y0) > 15) return a.bbox.y0 - b.bbox.y0;
