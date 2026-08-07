@@ -1,29 +1,5 @@
 // Wait for DOM to load
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Login System ---
-    const loginOverlay = document.getElementById('login-overlay');
-    const appContent = document.getElementById('app-content');
-    const loginPassword = document.getElementById('login-password');
-    const loginError = document.getElementById('login-error');
-
-    window.checkLogin = function() {
-        if (loginPassword.value === 'tapşıranlar61') {
-            sessionStorage.setItem('auth', 'true');
-            loginOverlay.style.display = 'none';
-            appContent.style.display = 'block';
-        } else {
-            loginError.style.display = 'block';
-            loginPassword.value = '';
-        }
-    };
-
-    if (sessionStorage.getItem('auth') === 'true') {
-        loginOverlay.style.display = 'none';
-        appContent.style.display = 'block';
-    } else {
-        loginOverlay.style.display = 'flex';
-        appContent.style.display = 'none';
-    }
 
     // --- DOM Elements ---
     const uploadZone = document.getElementById('upload-zone');
