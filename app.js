@@ -410,6 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('PaddleOCR sunucusuna bağlanılamadı.', err);
                 throw err;
             }
+        } catch (error) {
             console.error("OCR Error:", error);
             showToast('OCR işlemi başarısız. Lütfen daha net bir fotoğraf yükleyin.', 'error');
             setActiveStep(1);
