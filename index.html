@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -32,23 +32,8 @@
     <script src="app.js?v=1.61.3" defer></script>
 </head>
 <body>
-    <!-- Login Screen -->
-    <div id="login-overlay" class="login-overlay">
-        <div class="login-card">
-            <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="login-logo">
-            <h2>Sisteme Giriş</h2>
-            <p>Lütfen devam etmek için şifrenizi girin.</p>
-            <div class="form-group" style="margin-top: 1.5rem;">
-                <input type="password" id="login-password" class="glass-input" placeholder="Şifre" onkeydown="if(event.key === 'Enter') checkLogin()">
-            </div>
-            <p id="login-error" style="color: var(--danger); display: none; font-size: 0.875rem; margin-top: 0.5rem;">Hatalı şifre, lütfen tekrar deneyin.</p>
-            <button class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;" onclick="checkLogin()">Giriş Yap</button>
-        </div>
-    </div>
-
     <!-- Main App Content -->
-    <div id="app-content" style="display: none;">
-        <header class="app-header">
+    <div id="app-content">
             <div class="header-content">
                 <img src="https://www.topkapi.edu.tr/resources/files/logo_tr.jpg" alt="İstanbul Topkapı Üniversitesi" class="logo-img" onclick="document.getElementById('file-input').click()">
                 <div style="display: flex; align-items: center; justify-content: space-between; flex: 1;">
