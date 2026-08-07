@@ -971,7 +971,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Strategy A: GCGM barcode text (most reliable, always on the form)
         // e.g. GCGM03-92026880638278 → 2026-88-0638278
-        const barcodeMatch = fullText.match(/GC[CG]M\d+[-–]?\d(\d{4})(\d{2})(\d{7})/i);
+        const cleanForBarcode = fullText.replace(/\s+/g, '');
+        const barcodeMatch = cleanForBarcode.match(/GC[CG]M\d+[-–]?\d(\d{4})(\d{2})(\d{7})/i);
         if (barcodeMatch) {
             extracted.basvuruNo = `${barcodeMatch[1]}-${barcodeMatch[2]}-${barcodeMatch[3]}`;
         }
