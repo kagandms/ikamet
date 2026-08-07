@@ -598,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Sadece harflerden oluşan, 3+ karakter uzunluğundaki metni al
                         const cleanedCountry = cropText.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü\s]/g, '').trim();
                         if (cleanedCountry.length >= 3) {
-                            extracted.uyrugu = cleanedCountry.toUpperCase();
+                            extracted.uyrugu = cleanedCountry.toLocaleUpperCase('tr-TR');
                             console.log('[Crop] Uyruğu bulundu:', extracted.uyrugu);
                         }
                         
@@ -612,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             const cleaned2 = cropText2.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü\s]/g, '').trim();
                             if (cleaned2.length >= 3) {
-                                extracted.uyrugu = cleaned2.toUpperCase();
+                                extracted.uyrugu = cleaned2.toLocaleUpperCase('tr-TR');
                                 console.log('[Crop] Uyruğu (PSM 8) bulundu:', extracted.uyrugu);
                             }
                         }
@@ -779,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cleanAndFixWord = (text) => {
             const cleanedWord = text.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü'\-]/g, '');
             if (cleanedWord.length < 2) return null;
-            return text.toUpperCase()
+            return text.toLocaleUpperCase('tr-TR')
                 .replace(/[0]/g, 'O').replace(/[1]/g, 'I').replace(/[3]/g, 'E')
                 .replace(/[4]/g, 'A').replace(/[5]/g, 'S').replace(/[8]/g, 'B')
                 .replace(/[^A-ZÇĞİÖŞÜ'\-]/g, '');
@@ -944,7 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (isNameWord) {
                     // OCR'da sık karışan rakamları harfe çevir
-                    let fixedWord = word.toUpperCase()
+                    let fixedWord = word.toLocaleUpperCase('tr-TR')
                         .replace(/[0]/g, 'O')
                         .replace(/[1]/g, 'I')
                         .replace(/[3]/g, 'E')
@@ -1084,7 +1084,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 if (/^[A-ZÇĞİÖŞÜa-zçğıöşü]+$/.test(word)) {
-                    validParts.push(word.toUpperCase());
+                    validParts.push(word.toLocaleUpperCase('tr-TR'));
                 } else if (validParts.length > 0) {
                     break;
                 }
