@@ -153,15 +153,17 @@
                             
                             <div class="form-group">
                                 <label for="field-uyrugu">Uyruğu</label>
-                                <input type="text" id="field-uyrugu" list="uyruk-list" class="glass-input" placeholder="Uyruk seçin veya yazın">
-                                <datalist id="uyruk-list">
+                                <select id="field-uyrugu" class="glass-input">
+                                    <option value="" disabled selected>Uyruk seçmek için tıklayınız</option>
                                     <option value="TÜRKMENİSTAN">Türkmenistan</option>
                                     <option value="ÖZBEKİSTAN">Özbekistan</option>
                                     <option value="KIRGIZİSTAN">Kırgızistan</option>
                                     <option value="RUSYA FEDERASYONU">Rusya Federasyonu</option>
                                     <option value="AFGANİSTAN">Afganistan</option>
                                     <option value="PAKİSTAN">Pakistan</option>
-                                </datalist>
+                                    <option value="OTHER">Diğer (Manuel Yaz)...</option>
+                                </select>
+                                <input type="text" id="field-uyrugu-other" class="glass-input" style="display: none; margin-top: 10px;" placeholder="Uyruk yazınız...">
                             </div>
                             <div class="form-group">
                                 <label for="field-dogum-tarihi">Doğum Tarihi</label>

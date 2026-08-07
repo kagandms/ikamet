@@ -1174,6 +1174,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (optionExists) {
                         field.value = value;
                         field.classList.add('success');
+                        if (key === 'uyrugu') {
+                            const otherInput = document.getElementById('field-uyrugu-other');
+                            if (otherInput) otherInput.style.display = 'none';
+                        }
+                    } else if (key === 'uyrugu') {
+                        field.value = 'OTHER';
+                        field.classList.add('success');
+                        const otherInput = document.getElementById('field-uyrugu-other');
+                        if (otherInput) {
+                            otherInput.style.display = 'block';
+                            otherInput.value = value;
+                            otherInput.classList.add('success');
+                        }
                     }
                 } else {
                     field.value = value;
@@ -1188,6 +1201,17 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRescan.addEventListener('click', () => {
             if (fileInput) fileInput.value = '';
             setActiveStep(1);
+        });
+    }
+
+    if (fields.uyrugu) {
+        fields.uyrugu.addEventListener('change', (e) => {
+            const otherInput = document.getElementById('field-uyrugu-other');
+            if (e.target.value === 'OTHER') {
+                otherInput.style.display = 'block';
+            } else {
+                otherInput.style.display = 'none';
+            }
         });
     }
 
@@ -1236,7 +1260,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const vPasaportNo = getVal(fields.pasaportNo);
             const vAdi = getVal(fields.adi);
             const vSoyadi = getVal(fields.soyadi);
-            const vUyrugu = getVal(fields.uyrugu);
+            let vUyrugu = getVal(fields.uyrugu);
+            if (vUyrugu === 'OTHER') {
+                vUyrugu = document.getElementById('field-uyrugu-other').value || ' ';
+            }
             const vDogum = getVal(fields.dogumTarihi);
             const vAdres = getVal(fields.adres);
             const vTel = getVal(fields.tel);
