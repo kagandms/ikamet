@@ -618,26 +618,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 .replace(/[^A-ZÇĞİÖŞÜ'\-]/g, '');
         };
 
-        // Yardımcı: etiket kelimesinin sağında, aynı satırda, midpoint'ten önce olan değer kelimeleri bul
+        // Yardımcı: etiket kelimesinin sağında (aynı satır) VEYA hemen altında (aynı sütun) olan değer kelimeleri bul
         const findValueWordsForLabel = (labelWord) => {
             const validWords = words
                 .filter(w => {
-                    if (!sameRow(labelWord, w)) return false;
-                    if (w.bbox.x0 <= labelWord.bbox.x1) return false;
-                    // Resim kaymış/dar açılıysa midpoint sağa kayabilir. Tolerans 0.65'e çıkarıldı. (Sağ sütunu coordFormLabels engelliyor zaten)
-                    if (w.bbox.x0 > imageWidth * 0.65) return false;
-                    if (coordFormLabels.test(w.text)) return false;
+                    // Aynı satırda sağda mı?
+                    const isRight = sameRow(labelWord, w) && w.bbox.x0 > labelWord.bbox.x1;
+                    // Veya aynı sütunda altta mı? (X ekseni örtüşüyor/yakın, Y ekseni aşağıda)
+                    const labelCenterX = (labelWord.bbox.x0 + labelWord.bbox.x1) / 2;
+                    const wCenterX = (w.bbox.x0 + w.bbox.x1) / 2;
+                    const isBelow = w.bbox.y0 > labelWord.bbox.y0 + 5 && Math.abs(wCenterX - labelCenterX) < (labelWord.bbox.x1 - labelWord.bbox.x0) + 150;
                     
-                    // OCR Halüsinasyon filtresi (Tekrar devrede, lekeleri engeller)
+                    if (!isRight && !isBelow) return false;
+                    if (coordFormLabels.test(w.text)) return false; // Form etiketlerini atla (örn: "Surname" altındaysa atlar, değerini alır)
+                    
+                    // OCR Halüsinasyon filtresi
                     const labelH = labelWord.bbox.y1 - labelWord.bbox.y0;
                     const wH = w.bbox.y1 - w.bbox.y0;
-                    if (wH > labelH * 2.8 || wH < labelH * 0.3) return false;
+                    if (wH > labelH * 3.5 || wH < labelH * 0.3) return false;
                     
                     return cleanAndFixWord(w.text) !== null;
                 })
-                .sort((a, b) => a.bbox.x0 - b.bbox.x0)
-                .map(w => cleanAndFixWord(w.text));
-            return validWords.slice(0, 3); // En fazla 3 kelime al (isimler genelde 1-3 kelimedir)
+                .sort((a, b) => {
+                    // Önce Y'ye göre sırala (en yakın alt/sağ), aynı satırdaysa X'e göre
+                    if (Math.abs(a.bbox.y0 - b.bbox.y0) < 15) {
+                        return a.bbox.x0 - b.bbox.x0;
+                    }
+                    return a.bbox.y0 - b.bbox.y0;
+                });
+            
+            if (validWords.length === 0) return [];
+            
+            // İlk geçerli kelimeyi ve onunla aynı satırdaki diğer geçerli kelimeleri al
+            const result = [cleanAndFixWord(validWords[0].text)];
+            const firstY = validWords[0].bbox.y0;
+            
+            for (let i = 1; i < validWords.length; i++) {
+                if (Math.abs(validWords[i].bbox.y0 - firstY) < 15) {
+                    result.push(cleanAndFixWord(validWords[i].text));
+                } else {
+                    break;
+                }
+            }
+            
+            return result.slice(0, 3); // En fazla 3 kelime al
         };
         
         // Yardımcı: sağ sütun değerleri bul (Uyruğu gibi - midpoint sonrası)
@@ -745,6 +769,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     extracted.dogumTarihi = `${match[1].padStart(2, '0')}.${match[2].padStart(2, '0')}.${match[3]}`;
                     console.log('[Koordinat] Doğum Tarihi bulundu:', extracted.dogumTarihi);
                     break;
+                }
+            }
+        }
+        
+        // --- PASAPORT / BELGE NO ---
+        if (!extracted.pasaportNo) {
+            for (const w of words) {
+                if (!/^Belge$/i.test(w.text) && !/^Number$/i.test(w.text)) continue;
+                
+                // Sağ tarafta "No" veya "of Document" var mı kontrol etmiyoruz, direkt sağdaki (veya alttaki) değeri arıyoruz
+                const values = findValueWordsForLabel(w);
+                if (values.length > 0) {
+                    const pass = values.join('');
+                    if (/^[A-Z0-9]{5,15}$/.test(pass) && !/^INFORMATION$/i.test(pass)) {
+                        extracted.pasaportNo = pass;
+                        console.log('[Koordinat] Pasaport No bulundu:', extracted.pasaportNo);
+                        break;
+                    }
                 }
             }
         }
