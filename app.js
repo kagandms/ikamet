@@ -424,7 +424,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 console.warn('PaddleOCR sunucusuna bağlanılamadı. Tesseract.js kullanılıyor...', err);
-                showToast('Python sunucusu kapalı, yerel OCR (Tesseract) kullanılıyor...', 'warning');
+                const errMsg = err.message ? err.message : String(err);
+                showToast(`Python sunucusuna bağlanılamadı (${errMsg}). Yerel OCR (Tesseract) kullanılıyor...`, 'warning');
             }
 
             if (progressText) progressText.innerText = 'Yerel OCR başlatılıyor...';
