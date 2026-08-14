@@ -1721,12 +1721,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Generate HTML for the print area
             const printHtml = `
                 <style>
-                    @page { size: A4 portrait; margin: 8mm; }
                     .print-table { width: 100%; border-collapse: collapse; margin-bottom: 3px; }
                     .print-table th, .print-table td { border: 1px solid #000; padding: 4px; text-align: left; vertical-align: middle; font-size: 12px; }
                     .print-table th { font-weight: bold; }
                 </style>
-                <div id="pdf-content" style="font-family: 'Times New Roman', Times, serif; padding: 5mm 10mm; color: black; background: white; border: 4px double black; height: 278mm; box-sizing: border-box; display: flex; flex-direction: column; max-width: 210mm; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; overflow: hidden;">
+                <div id="pdf-content" style="font-family: 'Times New Roman', Times, serif; padding: 5mm 10mm; color: black; background: white; border: 4px double black; box-sizing: border-box; max-width: 210mm; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-inside: avoid;">
                     
                     <div style="border: 1px solid black; margin: 0 auto 5px auto; width: 65%; padding: 4px 0; text-align: center; font-size: 15px;">
                         İSTANBUL TOPKAPI ÜNİVERSİTESİ<br><br>
@@ -1790,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <li style="margin-bottom: 2px; line-height: 1.1;">☐ 18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge (doğum belgesi, aile belgesi vb.) ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)</li>
                     </ul>
                     
-                    <div style="margin-top: auto; display: flex; justify-content: space-around; font-weight: bold; font-size: 12px; padding-bottom: 10mm; padding-top: 6px;">
+                    <div style="margin-top: 25px; display: flex; justify-content: space-around; font-weight: bold; font-size: 12px; padding-bottom: 20mm; padding-top: 6px; page-break-before: avoid; break-before: avoid;">
                         <div style="text-align: center;"><span style="text-decoration: underline;">TEBLİĞ EDEN</span><br>Üniversite Personeli</div>
                         <div style="text-align: center;"><span style="text-decoration: underline;">TEBELLÜĞ EDEN</span><br>Yabancı Öğrenci</div>
                     </div>
