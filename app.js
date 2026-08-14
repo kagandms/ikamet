@@ -1705,7 +1705,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     .print-table th, .print-table td { border: 1px solid #000; padding: 4px; text-align: left; vertical-align: middle; font-size: 12px; }
                     .print-table th { font-weight: bold; }
                 </style>
-                <div id="pdf-content" style="font-family: 'Times New Roman', Times, serif; padding: 5mm 10mm; color: black; background: white; border: 4px double black; height: 275mm; box-sizing: border-box; display: flex; flex-direction: column; max-width: 210mm; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; overflow: hidden;">
+                <div id="pdf-content" style="font-family: 'Times New Roman', Times, serif; padding: 5mm 10mm; color: black; background: white; border: 4px double black; height: 270mm; box-sizing: border-box; display: flex; flex-direction: column; max-width: 210mm; margin: 0 auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; overflow: hidden;">
                     
                     <div style="border: 1px solid black; margin: 0 auto 5px auto; width: 65%; padding: 4px 0; text-align: center; font-size: 15px;">
                         İSTANBUL TOPKAPI ÜNİVERSİTESİ<br><br>
