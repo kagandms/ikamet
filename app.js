@@ -1749,24 +1749,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     <p style="text-align: right; font-size: 12px; margin-bottom: 2px;">___ / ___/ 202_<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Tarih)</p>
                     
-                    <p style="font-weight: bold; font-size: 12px; margin-bottom: 2px;">BELGELER:</p>
-                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 11px; padding-left: 15px;">
-                        <li style="margin-bottom: 1px;">☐ İkamet izni kayıt/başvuru formu (öğrenci tarafından ıslak imzalı şekilde)</li>
-                        <li style="margin-bottom: 1px;">☐ Pasaport ya da pasaport yerine geçen belge (aslı görüldü şeklinde)</li>
-                        <li style="margin-bottom: 1px;">☐ Öğrencilik durumunu gösterir belge</li>
-                        <li style="margin-bottom: 1px;">☐ 4 adet biometrik fotoğraf</li>
-                        <li style="margin-bottom: 1px;">☐ Geçerli sağlık sigortası (GSS ya da ikamet izni talep süresini kapsayan özel sağlık sigortası)</li>
-                        <li style="margin-bottom: 1px;">☐ Kalacağı adres bilgilerini gösterir belge
-                            <ul style="list-style-type: disc; padding-left: 20px; margin-top: 1px; margin-bottom: 1px;">
-                                <li style="margin-bottom: 1px;">Kendi evinde kalıyorsa, tapu fotokopisi (uzatma başvurularında "yerleşim yeri belgesi ve fatura" yeterlidir)</li>
-                                <li style="margin-bottom: 1px;">Kira sözleşmesi ile kalıyorsa, kira sözleşmesinin noter onaylı örneği</li>
-                                <li style="margin-bottom: 1px;">Otel vb. konaklama yerlerinde kalınıyorsa, bu yerlerde kalındığına dair belge</li>
-                                <li style="margin-bottom: 1px;">Öğrenci yurtlarında kalınıyorsa, yurtta kalındığına dair belge</li>
-                                <li style="margin-bottom: 1px;">Destekleyici yanında kalınıyorsa, yanında kaldığı kişinin noter onaylı taahhüdü (Destekleyici evli ise ayrıca eşinin de noter onaylı taahhüdü)</li>
+                    <p style="font-weight: bold; font-size: 12px; margin-bottom: 4px; margin-top: 15px;">BELGELER:</p>
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; padding-left: 15px;">
+                        <li style="margin-bottom: 2px;">☐ İkamet izni kayıt/başvuru formu (öğrenci tarafından ıslak imzalı şekilde)</li>
+                        <li style="margin-bottom: 2px;">☐ Pasaport ya da pasaport yerine geçen belge (aslı görüldü şeklinde)</li>
+                        <li style="margin-bottom: 2px;">☐ Öğrencilik durumunu gösterir belge</li>
+                        <li style="margin-bottom: 2px;">☐ 4 adet biometrik fotoğraf</li>
+                        <li style="margin-bottom: 2px;">☐ Geçerli sağlık sigortası (GSS ya da ikamet izni talep süresini kapsayan özel sağlık sigortası)</li>
+                        <li style="margin-bottom: 2px;">☐ Kalacağı adres bilgilerini gösterir belge
+                            <ul style="list-style-type: disc; padding-left: 20px; margin-top: 2px; margin-bottom: 2px;">
+                                <li style="margin-bottom: 2px;">Kendi evinde kalıyorsa, tapu fotokopisi (uzatma başvurularında "yerleşim yeri belgesi ve fatura" yeterlidir)</li>
+                                <li style="margin-bottom: 2px;">Kira sözleşmesi ile kalıyorsa, kira sözleşmesinin noter onaylı örneği</li>
+                                <li style="margin-bottom: 2px;">Otel vb. konaklama yerlerinde kalınıyorsa, bu yerlerde kalındığına dair belge</li>
+                                <li style="margin-bottom: 2px;">Öğrenci yurtlarında kalınıyorsa, yurtta kalındığına dair belge</li>
+                                <li style="margin-bottom: 2px;">Destekleyici yanında kalınıyorsa, yanında kaldığı kişinin noter onaylı taahhüdü (Destekleyici evli ise ayrıca eşinin de noter onaylı taahhüdü)</li>
                             </ul>
                         </li>
-                        <li style="margin-bottom: 1px;">☐ İkamet izni belge bedelinin ödendiğine dair makbuz</li>
-                        <li style="margin-bottom: 1px; line-height: 1.1;">☐ 18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge (doğum belgesi, aile belgesi vb.) ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)</li>
+                        <li style="margin-bottom: 2px;">☐ İkamet izni belge bedelinin ödendiğine dair makbuz</li>
+                        <li style="margin-bottom: 2px; line-height: 1.1;">☐ 18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge (doğum belgesi, aile belgesi vb.) ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)</li>
                     </ul>
                     
                     <div style="margin-top: auto; display: flex; justify-content: space-around; font-weight: bold; font-size: 12px; padding-bottom: 5px; padding-top: 10px;">
