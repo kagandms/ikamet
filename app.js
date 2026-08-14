@@ -1789,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <li style="margin-bottom: 2px; line-height: 1.1;">☐ 18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge (doğum belgesi, aile belgesi vb.) ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)</li>
                     </ul>
                     
-                    <div style="margin-top: 25px; display: flex; justify-content: space-around; font-weight: bold; font-size: 12px; padding-bottom: 20mm; padding-top: 6px; page-break-before: avoid; break-before: avoid;">
+                    <div style="margin-top: 20mm; display: flex; justify-content: space-around; font-weight: bold; font-size: 12px; padding-bottom: 20mm; padding-top: 6px; page-break-before: avoid; break-before: avoid;">
                         <div style="text-align: center;"><span style="text-decoration: underline;">TEBLİĞ EDEN</span><br>Üniversite Personeli</div>
                         <div style="text-align: center;"><span style="text-decoration: underline;">TEBELLÜĞ EDEN</span><br>Yabancı Öğrenci</div>
                     </div>
