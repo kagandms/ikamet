@@ -480,8 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let width = img.width;
         let height = img.height;
-        // Çözünürlük 1024'ten 1200'e çıkarıldı: OCR kelime sırasının bozulmasını önlemek için
-        const MAX_WIDTH = 1200; 
+        // 800px: yavaş ağlarda upload süresini kısaltır, OCR doğruluğunu korur
+        const MAX_WIDTH = 800;
         
         if (width > MAX_WIDTH) {
             const ratio = MAX_WIDTH / width;
@@ -493,11 +493,11 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = height;
         
         // Hız ve İsabet Optimizasyonu: JS döngüsü yerine yüksek kontrastlı donanım filtresi
-        ctx.filter = 'grayscale(100%) contrast(140%) brightness(110%)';
+        ctx.filter = 'grayscale(100%) contrast(160%) brightness(105%)';
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Hız ve kalite dengesi için kalite 0.80 WebP olarak ayarlandı (JPEG'den %40 daha küçük)
-        return { dataUrl: canvas.toDataURL('image/webp', 0.80), canvas: canvas };
+        // WebP 0.65: yavaş ağlarda veri miktarını azaltır, OCR için yeterli kalite
+        return { dataUrl: canvas.toDataURL('image/webp', 0.65), canvas: canvas };
     }
 
     function processAndRunOCR(img) {
@@ -592,34 +592,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeAbortController = controller;
                 const timeoutId = setTimeout(() => controller.abort(), 60000);
                 
-                let fetchUrl, fetchBody;
-                
+                let fetchBody;
+
+                // Google Vision isteği için ortak body
+                const buildVisionBody = (key) => JSON.stringify({
+                    requests: [{
+                        image: { content: base64Data },
+                        features: [{ type: 'DOCUMENT_TEXT_DETECTION', model: 'builtin/latest' }],
+                        imageContext: { languageHints: ["tr", "en"] }
+                    }]
+                });
+
+                let response;
+
                 if (GOOGLE_VISION_API_KEY && GOOGLE_VISION_API_KEY.trim() !== '') {
-                    // KESTİRME YOL: Vercel'i atla, doğrudan Google'a git!
                     if (progressText) progressText.innerText = 'Belge Yapay Zeka ile Analiz Ediliyor...';
-                    fetchUrl = `https://eu-vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
-                    fetchBody = JSON.stringify({
-                        requests: [{
-                            image: { content: base64Data },
-                            features: [{ type: 'DOCUMENT_TEXT_DETECTION', model: 'builtin/latest' }],
-                            imageContext: { languageHints: ["tr", "en"] }
-                        }]
+
+                    // EU endpoint'i 8 saniye içinde dene; başarısız olursa global'a geç
+                    const euUrl = `https://eu-vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
+                    const globalUrl = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
+
+                    const tryFetch = async (url, signal) => fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: buildVisionBody(),
+                        signal
                     });
+
+                    try {
+                        // EU endpoint — 8 sn zaman aşımı
+                        const euController = new AbortController();
+                        const euTimeout = setTimeout(() => euController.abort(), 8000);
+                        response = await tryFetch(euUrl, euController.signal);
+                        clearTimeout(euTimeout);
+                    } catch (euErr) {
+                        // EU bloke veya timeout → global endpoint'e düş
+                        if (progressText) progressText.innerText = 'Alternatif sunucuya bağlanılıyor...';
+                        response = await tryFetch(globalUrl, controller.signal);
+                    }
                 } else {
                     // STANDART YOL: Vercel üzerinden git (Aracı sunucu)
                     if (progressText) progressText.innerText = 'Sunucuya (Vercel) bağlanılıyor...';
-                    fetchUrl = `/api/ocr`;
-                    fetchBody = JSON.stringify({ imageContent: base64Data });
+                    response = await fetch('/api/ocr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageContent: base64Data }),
+                        signal: controller.signal
+                    });
                 }
-                
-                const response = await fetch(fetchUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: fetchBody,
-                    signal: controller.signal
-                });
                 clearTimeout(timeoutId);
                 
                 if (response.ok) {
