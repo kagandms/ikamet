@@ -1480,211 +1480,249 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            const { Document, Paragraph, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType, BorderStyle, HeadingLevel, Packer, VerticalAlign, TableLayoutType } = window.docx;
+            const { Document, Paragraph, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType, BorderStyle, Packer, VerticalAlign, TableLayoutType, convertInchesToTwip } = window.docx;
 
             // Get form values
-            const getVal = (field) => field ? field.value || ' ' : ' ';
+            const getVal = (field) => field ? (field.value || '').trim() || ' ' : ' ';
             const vBasvuruNo = getVal(fields.basvuruNo);
             const vTeslim = getVal(fields.teslimTarihi);
-            const vYabanciKimlik = ' '; // Word tablosunda boş kalması için sabit boşluk gönderiliyor
             const vPasaportNo = getVal(fields.pasaportNo);
             const vAdi = getVal(fields.adi);
             const vSoyadi = getVal(fields.soyadi);
-            let vUyrugu = getVal(fields.uyrugu);
+            let vUyrugu = fields.uyrugu ? fields.uyrugu.value : '';
             if (vUyrugu === 'OTHER') {
-                vUyrugu = document.getElementById('field-uyrugu-other').value || ' ';
+                const otherInput = document.getElementById('field-uyrugu-other');
+                vUyrugu = (otherInput && otherInput.value.trim()) || ' ';
             }
+            vUyrugu = vUyrugu.trim() || ' ';
             const vDogum = getVal(fields.dogumTarihi);
             const vAdres = getVal(fields.adres);
             const vTel = getVal(fields.tel);
-            const vMail = "xxxx"; // Sabit 'xxxx' değeri (kullanıcı talebi)
+            const currentYear = new Date().getFullYear();
 
-            // Table Border Settings
-            const tableBorder = {
-                top: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
-                left: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
-                right: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
-                insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
-                insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "BFBFBF" },
+            // Reusable border config
+            const cellBorder = {
+                top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+            };
+            const noBorder = {
+                top: { style: BorderStyle.NONE, size: 0 },
+                bottom: { style: BorderStyle.NONE, size: 0 },
+                left: { style: BorderStyle.NONE, size: 0 },
+                right: { style: BorderStyle.NONE, size: 0 },
             };
 
+            // Helper: bold label cell
+            const labelCell = (text, widthPct) => new TableCell({
+                width: { size: widthPct, type: WidthType.PERCENTAGE },
+                borders: cellBorder,
+                verticalAlign: VerticalAlign.CENTER,
+                children: [new Paragraph({ children: [new TextRun({ text: text, bold: true, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
+            });
+
+            // Helper: value cell
+            const valueCell = (text, widthPct) => new TableCell({
+                width: { size: widthPct, type: WidthType.PERCENTAGE },
+                borders: cellBorder,
+                verticalAlign: VerticalAlign.CENTER,
+                children: [new Paragraph({ children: [new TextRun({ text: text, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
+            });
+
+            // Helper: header cell (centered, not bold)
+            const headerCell = (text, widthPct) => new TableCell({
+                width: { size: widthPct, type: WidthType.PERCENTAGE },
+                borders: cellBorder,
+                verticalAlign: VerticalAlign.CENTER,
+                children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: text, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
+            });
+
+            // Belgeler listesi
+            const belgeler = [
+                "İkamet izni kayıt/başvuru formu (öğrenci tarafından ıslak imzalı şekilde)",
+                "Pasaport ya da pasaport yerine geçen belge (aslı görüldü şeklinde)",
+                "Öğrencilik durumunu gösterir belge",
+                "4 adet biometrik fotoğraf",
+                "Geçerli sağlık sigortası (GSS ya da ikamet izni talep süresini kapsayan özel sağlık sigortası)",
+                "Kalacağı adres bilgilerini gösterir belge",
+            ];
+            const altBelgeler = [
+                "Kendi evinde kalıyorsa, tapu fotokopisi (uzatma başvurularında \"yerleşim yeri belgesi ve fatura\" yeterlidir)",
+                "Kira sözleşmesi ile kalıyorsa, kira sözleşmesinin noter onaylı örneği",
+                "Otel vb. konaklama yerlerinde kalınıyorsa, bu yerlerde kalındığına dair belge",
+                "Öğrenci yurtlarında kalınıyorsa, yurtta kalındığına dair belge",
+                "Destekleyici yanında kalınıyorsa, yanında kaldığı kişinin noter onaylı taahhüdü (Destekleyici evli ise ayrıca eşinin de noter onaylı taahhüdü)",
+            ];
+            const sonBelgeler = [
+                "İkamet izni belge bedelinin ödendiğine dair makbuz",
+                "18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)",
+            ];
+
             const doc = new Document({
-                creator: "OCR App",
-                title: "Ogrenci Kayit Formu",
+                creator: "Topkapi OCR",
+                title: "Ogrenci Bilgi Formu",
                 styles: {
                     default: {
                         document: {
-                            run: {
-                                font: "Times New Roman"
-                            }
+                            run: { font: "Times New Roman", size: 22 }
                         }
                     }
                 },
                 sections: [{
-                    properties: {},
+                    properties: {
+                        page: {
+                            margin: { top: convertInchesToTwip(0.5), bottom: convertInchesToTwip(0.5), left: convertInchesToTwip(0.7), right: convertInchesToTwip(0.7) }
+                        }
+                    },
                     children: [
                         // Title
                         new Paragraph({
                             alignment: AlignmentType.CENTER,
-                            children: [
-                                new TextRun({
-                                    text: "İSTANBUL TOPKAPI ÜNİVERSİTESİ",
-                                    bold: true,
-                                    size: 28 // 14pt (Half-points)
-                                })
-                            ],
-                            spacing: { after: 400 }
+                            border: { top: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 4 }, bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 4 }, left: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 8 }, right: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 8 } },
+                            spacing: { after: 300 },
+                            indent: { left: convertInchesToTwip(1.5), right: convertInchesToTwip(1.5) },
+                            children: [new TextRun({ text: "İSTANBUL TOPKAPI ÜNİVERSİTESİ", bold: false, size: 28, font: "Times New Roman" })]
                         }),
 
-                        // Table
+                        // Info Table
                         new Table({
                             width: { size: 100, type: WidthType.PERCENTAGE },
-                            borders: tableBorder,
                             layout: TableLayoutType.FIXED,
                             rows: [
-                                // Row 1: Spacer
+                                // Spacer row
                                 new TableRow({
-                                    children: [
-                                        new TableCell({
-                                            columnSpan: 4,
-                                            children: [new Paragraph(" ")],
-                                            shading: { fill: "F2F2F2" }
-                                        })
-                                    ]
+                                    children: [new TableCell({ columnSpan: 4, width: { size: 100, type: WidthType.PERCENTAGE }, borders: cellBorder, children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [new TextRun(" ")] })] })]
                                 }),
-                                // Row 2
-                                new TableRow({
-                                    children: [
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "e-İkamet Başvuru No", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vBasvuruNo)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Öğrencinin Evraklarını Ofise Teslim Tarihi", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vTeslim)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                    ]
-                                }),
-                                // Row 3
-                                new TableRow({
-                                    children: [
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Yabancı Kimlik No", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vYabanciKimlik)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Pasaport No", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vPasaportNo)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                    ]
-                                }),
-                                // Row 4
-                                new TableRow({
-                                    children: [
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Adı", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vAdi)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Soyadı", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vSoyadi)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                    ]
-                                }),
-                                // Row 5
-                                new TableRow({
-                                    children: [
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Uyruğu", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vUyrugu)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Doğum Tarihi", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vDogum)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                    ]
-                                }),
-                                // Row 6
-                                new TableRow({
-                                    children: [
-                                        new TableCell({ children: [new Paragraph(" ")], shading: { fill: "F2F2F2" } }),
-                                        new TableCell({ children: [new Paragraph("Adres")], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph("Tel No")], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph("Mail")], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                    ]
-                                }),
-                                // Row 7
-                                new TableRow({
-                                    children: [
-                                        new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Öğrencinin İletişim Bilgisi", bold: true })] })], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vAdres)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vTel)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                        new TableCell({ children: [new Paragraph(vMail)], verticalAlign: VerticalAlign.CENTER, margins: { top: 100, bottom: 100, left: 100 } }),
-                                    ]
-                                })
+                                // Row: Başvuru No / Teslim Tarihi
+                                new TableRow({ children: [
+                                    labelCell("e-İkamet\nBaşvuru No", 25),
+                                    valueCell(currentYear + "-" + vBasvuruNo.replace(new RegExp('^' + currentYear + '-'), ''), 25),
+                                    labelCell("Öğrencinin Evraklarını\nOfise Teslim Tarihi", 25),
+                                    valueCell(vTeslim, 25),
+                                ]}),
+                                // Row: Yabancı Kimlik / Pasaport
+                                new TableRow({ children: [
+                                    labelCell("Yabancı Kimlik\nNo", 25),
+                                    valueCell(" ", 25),
+                                    labelCell("Pasaport No", 25),
+                                    valueCell(vPasaportNo, 25),
+                                ]}),
+                                // Row: Adı / Soyadı
+                                new TableRow({ children: [
+                                    labelCell("Adı", 25),
+                                    valueCell(vAdi, 25),
+                                    labelCell("Soyadı", 25),
+                                    valueCell(vSoyadi, 25),
+                                ]}),
+                                // Row: Uyruğu / Doğum Tarihi
+                                new TableRow({ children: [
+                                    labelCell("Uyruğu", 25),
+                                    valueCell(vUyrugu, 25),
+                                    labelCell("Doğum Tarihi", 25),
+                                    valueCell(vDogum, 25),
+                                ]}),
+                                // Row: Headers (Adres, Tel, Mail)
+                                new TableRow({ children: [
+                                    new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: cellBorder, children: [new Paragraph(" ")] }),
+                                    headerCell("Adres", 25),
+                                    headerCell("Tel No", 25),
+                                    headerCell("Mail", 25),
+                                ]}),
+                                // Row: İletişim Bilgisi
+                                new TableRow({ children: [
+                                    labelCell("Öğrencinin\nİletişim Bilgisi", 25),
+                                    valueCell((vAdres.toUpperCase().startsWith('İSTANBUL') ? '' : 'İSTANBUL, ') + vAdres, 25),
+                                    valueCell(vTel, 25),
+                                    valueCell("xxxx", 25),
+                                ]}),
                             ]
                         }),
 
-                        // Legal Paragraph
+                        // Legal text
                         new Paragraph({
-                            children: [
-                                new TextRun({
-                                    text: "6458 sayılı Kanunun 38. maddesi çerçevesinde istenilen aşağıdaki belgelerin ekte sunulduğuna dair işbu tebliğ tebellüğ belgesi düzenlenerek altı imza altına alınmış, tebliğ belgesinin bir sureti tarafınıza verilmiş olup, bir sureti il göç idaresi müdürlüğüne gönderilecektir.",
-                                    size: 20 // 10pt
-                                })
-                            ],
-                            spacing: { before: 400, after: 200 },
-                            alignment: AlignmentType.JUSTIFIED
+                            spacing: { before: 300, after: 200 },
+                            alignment: AlignmentType.JUSTIFIED,
+                            indent: { firstLine: convertInchesToTwip(0.5) },
+                            children: [new TextRun({ text: "6458 sayılı Kanunun 38. maddesi çerçevesinde istenilen aşağıdaki belgelerin ekte sunulduğuna dair işbu tebliğ tebellüğ belgesi düzenlenerek altı imza altına alınmış, tebliğ belgesinin bir sureti tarafınıza verilmiş olup, bir sureti il göç idaresi müdürlüğüne gönderilecektir.", size: 22 })]
                         }),
 
-                        // Date Line
+                        // Date
                         new Paragraph({
-                            children: [
-                                new TextRun({
-                                    text: "___ / __ / 2026    (Tarih)",
-                                    size: 20
-                                })
-                            ],
-                            spacing: { after: 400 },
-                            alignment: AlignmentType.RIGHT
+                            spacing: { after: 200 },
+                            alignment: AlignmentType.RIGHT,
+                            children: [new TextRun({ text: "___ / ___ / 202_", size: 22 })]
+                        }),
+                        new Paragraph({
+                            spacing: { after: 300 },
+                            alignment: AlignmentType.RIGHT,
+                            children: [new TextRun({ text: "(Tarih)        ", size: 22, underline: {} })]
                         }),
 
-                        // Documents List
+                        // BELGELER header
                         new Paragraph({
-                            children: [new TextRun({ text: "BELGELER:", bold: true })],
-                            spacing: { after: 200 }
+                            spacing: { after: 100 },
+                            children: [new TextRun({ text: "BELGELER:", bold: true, size: 22 })]
                         }),
 
-                        ...[
-                            "İkamet izni kayıt/başvuru formu (öğrenci tarafından ıslak imzalı şekilde)",
-                            "Pasaport ya da pasaport yerine geçen belge (aslı görüldü şeklinde)",
-                            "Öğrencilik durumunu gösterir belge",
-                            "4 adet biometrik fotoğraf",
-                            "Geçerli sağlık sigortası (GSS ya da ikamet izni talep süresini kapsayan özel sağlık sigortası)",
-                            "Kalacağı adres bilgilerini gösterir belge",
-                            "Kendi evinde kalıyorsa, tapu fotokopisi (uzatma başvurularında 'yerleşim yeri belgesi ve fatura' yeterlidir)",
-                            "Kira sözleşmesi ile kalıyorsa, kira sözleşmesinin noter onaylı örneği",
-                            "Otel vb. konaklama yerlerinde kalınıyorsa, bu yerlerde kalındığına dair belge",
-                            "Öğrenci yurtlarında kalınıyorsa, yurtta kalındığına dair belge",
-                            "Destekleyici yanında kalınıyorsa, yanında kaldığı kişinin noter onaylı taahhüdü (Destekleyici evli ise ayrıca eşinin de noter onaylı taahhüdü)",
-                            "İkamet izni belge bedelinin ödendiği dair makbuz",
-                            "18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname"
-                        ].map(text => new Paragraph({
-                            text: "☐ " + text, // Using ballot box symbol for checkbox
-                            spacing: { after: 120 }
+                        // Main checkboxes
+                        ...belgeler.map(text => new Paragraph({
+                            spacing: { after: 60 },
+                            indent: { left: convertInchesToTwip(0.2) },
+                            children: [new TextRun({ text: "☐ " + text, size: 22 })]
                         })),
 
-                        // Signature Area
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: "TEBLİĞ EDEN\t\t\t\t\t\tTEBELLÜĞ EDEN", bold: true })
-                            ],
-                            spacing: { before: 600, after: 200 }
-                        }),
-                        new Paragraph({
-                            children: [
-                                new TextRun({ text: "Üniversite Personeli\t\t\t\t\t\tYabancı Öğrenci" })
+                        // Sub-bullets
+                        ...altBelgeler.map(text => new Paragraph({
+                            spacing: { after: 60 },
+                            indent: { left: convertInchesToTwip(0.5) },
+                            bullet: { level: 0 },
+                            children: [new TextRun({ text: text, size: 22 })]
+                        })),
+
+                        // Last checkboxes
+                        ...sonBelgeler.map(text => new Paragraph({
+                            spacing: { after: 60 },
+                            indent: { left: convertInchesToTwip(0.2) },
+                            children: [new TextRun({ text: "☐ " + text, size: 22 })]
+                        })),
+
+                        // Signature table (borderless)
+                        new Table({
+                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            layout: TableLayoutType.FIXED,
+                            rows: [
+                                new TableRow({ children: [
+                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [new TextRun({ text: "TEBLİĞ EDEN", bold: true, underline: {}, size: 22 })] })
+                                    ]}),
+                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [new TextRun({ text: "TEBELLÜĞ EDEN", bold: true, underline: {}, size: 22 })] })
+                                    ]}),
+                                ]}),
+                                new TableRow({ children: [
+                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "Üniversite Personeli", size: 22 })] })
+                                    ]}),
+                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "Yabancı Öğrenci", size: 22 })] })
+                                    ]}),
+                                ]}),
                             ]
-                        })
+                        }),
                     ]
                 }]
             });
 
             try {
                 const blob = await Packer.toBlob(doc);
-                // Handle missing names for filename gracefully
                 const fName = vAdi.trim() ? vAdi.trim() : "Ad";
                 const fSurname = vSoyadi.trim() ? vSoyadi.trim() : "Soyad";
                 saveAs(blob, `ONBILGI_${fSurname}_${fName}.docx`);
                 showToast('Word belgesi başarıyla oluşturuldu.', 'success');
             } catch (err) {
-                console.error(err);
-                showToast('Word belgesi oluşturulurken bir hata oluştu.', 'error');
+                console.error('Word hatası:', err);
+                showToast('Word belgesi oluşturulurken bir hata oluştu: ' + err.message, 'error');
             }
         });
     }
