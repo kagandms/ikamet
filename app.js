@@ -1,4 +1,4 @@
-// --- PWA Installation Logic ---
+﻿// --- PWA Installation Logic ---
 let deferredPrompt;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -1475,264 +1475,133 @@ document.addEventListener('DOMContentLoaded', () => {
     // Word Document Generation
     if (btnDownload) {
         btnDownload.addEventListener('click', async () => {
-            if (typeof docx === 'undefined') {
-                showToast('Word kütüphanesi yüklenemedi.', 'error');
+            if (typeof html2canvas === 'undefined' || typeof jspdf === 'undefined') {
+                showToast('PDF kütüphanesi yüklenemedi, lütfen sayfayı yenileyip tekrar deneyin.', 'error');
                 return;
             }
-            
-            const { Document, Paragraph, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType, BorderStyle, Packer, VerticalAlign, TableLayoutType, convertInchesToTwip } = window.docx;
 
-            // Get form values
-            const getVal = (field) => field ? (field.value || '').trim() || ' ' : ' ';
-            const vBasvuruNo = getVal(fields.basvuruNo);
-            const vTeslim = getVal(fields.teslimTarihi);
-            const vPasaportNo = getVal(fields.pasaportNo);
-            const vAdi = getVal(fields.adi);
-            const vSoyadi = getVal(fields.soyadi);
-            let vUyrugu = fields.uyrugu ? fields.uyrugu.value : '';
+            showToast('PDF hazırlanıyor...', 'info');
+
+            // Form değerlerini topla (print handler ile aynı mantık)
+            const vBasvuruNo = fields.basvuruNo.value.trim() || ' ';
+            const vTeslim = fields.teslimTarihi.value.trim() || ' ';
+            const vYabanciKimlik = ' ';
+            const vPasaportNo = fields.pasaportNo.value.trim() || ' ';
+            const vAdi = fields.adi.value.trim() || ' ';
+            const vSoyadi = fields.soyadi.value.trim() || ' ';
+            let vUyrugu = fields.uyrugu.value;
             if (vUyrugu === 'OTHER') {
                 const otherInput = document.getElementById('field-uyrugu-other');
-                vUyrugu = (otherInput && otherInput.value.trim()) || ' ';
+                if (otherInput && otherInput.value.trim()) vUyrugu = otherInput.value.trim();
             }
             vUyrugu = vUyrugu.trim() || ' ';
-            const vDogum = getVal(fields.dogumTarihi);
-            const vAdres = getVal(fields.adres);
-            const vTel = getVal(fields.tel);
+            const vDogum = fields.dogumTarihi.value ? fields.dogumTarihi.value.trim() : ' ';
+            const vAdres = fields.adres.value.trim() || ' ';
+            const vTel = fields.tel.value.trim() || ' ';
             const currentYear = new Date().getFullYear();
 
-            // Reusable border config
-            const cellBorder = {
-                top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-                right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
-            };
-            const noBorder = {
-                top: { style: BorderStyle.NONE, size: 0 },
-                bottom: { style: BorderStyle.NONE, size: 0 },
-                left: { style: BorderStyle.NONE, size: 0 },
-                right: { style: BorderStyle.NONE, size: 0 },
-            };
-
-            // A4 sayfası: 210mm - (2 x 17.8mm kenar) = ~174mm içerik genişliği
-            // 174mm = ~9882 twip. Her sütun %25 = ~2470 twip
-            // Sabit DXA (twip) kullanarak mobil Word görüntüleyicilerle %100 uyumluluk sağlıyoruz
-            const COL_W = 2470; // twip cinsinden her sütunun genişliği
-            const TABLE_W = COL_W * 4; // toplam tablo genişliği
-
-            // Helper: bold label cell - DXA sabit genişlik
-            const labelCell = (text, w) => new TableCell({
-                width: { size: w || COL_W, type: WidthType.DXA },
-                borders: cellBorder,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [new Paragraph({ children: [new TextRun({ text: text, bold: true, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
-            });
-
-            // Helper: value cell - DXA sabit genişlik
-            const valueCell = (text, w) => new TableCell({
-                width: { size: w || COL_W, type: WidthType.DXA },
-                borders: cellBorder,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [new Paragraph({ children: [new TextRun({ text: text, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
-            });
-
-            // Helper: header cell (centered) - DXA sabit genişlik
-            const headerCell = (text, w) => new TableCell({
-                width: { size: w || COL_W, type: WidthType.DXA },
-                borders: cellBorder,
-                verticalAlign: VerticalAlign.CENTER,
-                children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: text, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
-            });
-
-            // Belgeler listesi
-            const belgeler = [
-                "İkamet izni kayıt/başvuru formu (öğrenci tarafından ıslak imzalı şekilde)",
-                "Pasaport ya da pasaport yerine geçen belge (aslı görüldü şeklinde)",
-                "Öğrencilik durumunu gösterir belge",
-                "4 adet biometrik fotoğraf",
-                "Geçerli sağlık sigortası (GSS ya da ikamet izni talep süresini kapsayan özel sağlık sigortası)",
-                "Kalacağı adres bilgilerini gösterir belge",
-            ];
-            const altBelgeler = [
-                "Kendi evinde kalıyorsa, tapu fotokopisi (uzatma başvurularında \"yerleşim yeri belgesi ve fatura\" yeterlidir)",
-                "Kira sözleşmesi ile kalıyorsa, kira sözleşmesinin noter onaylı örneği",
-                "Otel vb. konaklama yerlerinde kalınıyorsa, bu yerlerde kalındığına dair belge",
-                "Öğrenci yurtlarında kalınıyorsa, yurtta kalındığına dair belge",
-                "Destekleyici yanında kalınıyorsa, yanında kaldığı kişinin noter onaylı taahhüdü (Destekleyici evli ise ayrıca eşinin de noter onaylı taahhüdü)",
-            ];
-            const sonBelgeler = [
-                "İkamet izni belge bedelinin ödendiğine dair makbuz",
-                "18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)",
-            ];
-
-            const doc = new Document({
-                creator: "Topkapi OCR",
-                title: "Ogrenci Bilgi Formu",
-                styles: {
-                    default: {
-                        document: {
-                            run: { font: "Times New Roman", size: 22 }
-                        }
-                    }
-                },
-                sections: [{
-                    properties: {
-                        page: {
-                            margin: { top: convertInchesToTwip(0.5), bottom: convertInchesToTwip(0.5), left: convertInchesToTwip(0.7), right: convertInchesToTwip(0.7) }
-                        }
-                    },
-                    children: [
-                        // Title
-                        new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            border: { top: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 4 }, bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 4 }, left: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 8 }, right: { style: BorderStyle.SINGLE, size: 1, color: "000000", space: 8 } },
-                            spacing: { after: 300 },
-                            indent: { left: convertInchesToTwip(1.5), right: convertInchesToTwip(1.5) },
-                            children: [new TextRun({ text: "İSTANBUL TOPKAPI ÜNİVERSİTESİ", bold: false, size: 28, font: "Times New Roman" })]
-                        }),
-
-                        // Info Table
-                        new Table({
-                            width: { size: TABLE_W, type: WidthType.DXA },
-                            layout: TableLayoutType.FIXED,
-                            rows: [
-                                // Spacer row
-                                new TableRow({
-                                    children: [new TableCell({ columnSpan: 4, width: { size: TABLE_W, type: WidthType.DXA }, borders: cellBorder, children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [new TextRun(" ")] })] })]
-                                }),
-                                // Row: Başvuru No / Teslim Tarihi
-                                new TableRow({ children: [
-                                    labelCell("e-İkamet\nBaşvuru No"),
-                                    valueCell(currentYear + "-" + vBasvuruNo.replace(new RegExp('^' + currentYear + '-'), '')),
-                                    labelCell("Öğrencinin Evraklarını\nOfise Teslim Tarihi"),
-                                    valueCell(vTeslim),
-                                ]}),
-                                // Row: Yabancı Kimlik / Pasaport
-                                new TableRow({ children: [
-                                    labelCell("Yabancı Kimlik\nNo"),
-                                    valueCell(" "),
-                                    labelCell("Pasaport No"),
-                                    valueCell(vPasaportNo),
-                                ]}),
-                                // Row: Adı / Soyadı
-                                new TableRow({ children: [
-                                    labelCell("Adı"),
-                                    valueCell(vAdi),
-                                    labelCell("Soyadı"),
-                                    valueCell(vSoyadi),
-                                ]}),
-                                // Row: Uyruğu / Doğum Tarihi
-                                new TableRow({ children: [
-                                    labelCell("Uyruğu"),
-                                    valueCell(vUyrugu),
-                                    labelCell("Doğum Tarihi"),
-                                    valueCell(vDogum),
-                                ]}),
-                                // Row: Headers (Adres, Tel, Mail)
-                                new TableRow({ children: [
-                                    new TableCell({ width: { size: COL_W, type: WidthType.DXA }, borders: cellBorder, children: [new Paragraph(" ")] }),
-                                    headerCell("Adres"),
-                                    headerCell("Tel No"),
-                                    headerCell("Mail"),
-                                ]}),
-                                // Row: İletişim Bilgisi
-                                new TableRow({ children: [
-                                    labelCell("Öğrencinin\nİletişim Bilgisi"),
-                                    valueCell((vAdres.toUpperCase().startsWith('İSTANBUL') ? '' : 'İSTANBUL, ') + vAdres),
-                                    valueCell(vTel),
-                                    valueCell("xxxx"),
-                                ]}),
-                            ]
-                        }),
-
-                        // Legal text
-                        new Paragraph({
-                            spacing: { before: 300, after: 200 },
-                            alignment: AlignmentType.JUSTIFIED,
-                            indent: { firstLine: convertInchesToTwip(0.5) },
-                            children: [new TextRun({ text: "6458 sayılı Kanunun 38. maddesi çerçevesinde istenilen aşağıdaki belgelerin ekte sunulduğuna dair işbu tebliğ tebellüğ belgesi düzenlenerek altı imza altına alınmış, tebliğ belgesinin bir sureti tarafınıza verilmiş olup, bir sureti il göç idaresi müdürlüğüne gönderilecektir.", size: 22 })]
-                        }),
-
-                        // Date
-                        new Paragraph({
-                            spacing: { after: 200 },
-                            alignment: AlignmentType.RIGHT,
-                            children: [new TextRun({ text: "___ / ___ / 202_", size: 22 })]
-                        }),
-                        new Paragraph({
-                            spacing: { after: 300 },
-                            alignment: AlignmentType.RIGHT,
-                            children: [new TextRun({ text: "(Tarih)        ", size: 22, underline: {} })]
-                        }),
-
-                        // BELGELER header
-                        new Paragraph({
-                            spacing: { after: 100 },
-                            children: [new TextRun({ text: "BELGELER:", bold: true, size: 22 })]
-                        }),
-
-                        // Main checkboxes
-                        ...belgeler.map(text => new Paragraph({
-                            spacing: { after: 60 },
-                            indent: { left: convertInchesToTwip(0.2) },
-                            children: [new TextRun({ text: "☐ " + text, size: 22 })]
-                        })),
-
-                        // Sub-bullets
-                        ...altBelgeler.map(text => new Paragraph({
-                            spacing: { after: 60 },
-                            indent: { left: convertInchesToTwip(0.5) },
-                            bullet: { level: 0 },
-                            children: [new TextRun({ text: text, size: 22 })]
-                        })),
-
-                        // Last checkboxes
-                        ...sonBelgeler.map(text => new Paragraph({
-                            spacing: { after: 60 },
-                            indent: { left: convertInchesToTwip(0.2) },
-                            children: [new TextRun({ text: "☐ " + text, size: 22 })]
-                        })),
-
-                        // Signature table (borderless)
-                        new Table({
-                            width: { size: TABLE_W, type: WidthType.DXA },
-                            layout: TableLayoutType.FIXED,
-                            rows: [
-                                new TableRow({ children: [
-                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
-                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [new TextRun({ text: "TEBLİĞ EDEN", bold: true, underline: {}, size: 22 })] })
-                                    ]}),
-                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
-                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [new TextRun({ text: "TEBELLÜĞ EDEN", bold: true, underline: {}, size: 22 })] })
-                                    ]}),
-                                ]}),
-                                new TableRow({ children: [
-                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
-                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "Üniversite Personeli", size: 22 })] })
-                                    ]}),
-                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
-                                        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "Yabancı Öğrenci", size: 22 })] })
-                                    ]}),
-                                ]}),
-                            ]
-                        }),
-                    ]
-                }]
-            });
+            // Aynı yazdırma şablonunu gizli div'e render et
+            const container = document.createElement('div');
+            container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;z-index:-1;';
+            container.innerHTML = `
+                <style>
+                    .pt { width: 100%; border-collapse: collapse; margin-bottom: 3px; }
+                    .pt th, .pt td { border: 1px solid #000; padding: 4px 5px; text-align: left; vertical-align: middle; font-size: 12px; font-family: 'Times New Roman', serif; }
+                    .pt th { font-weight: bold; }
+                </style>
+                <div style="font-family:'Times New Roman',Times,serif;padding:12mm 14mm;color:black;background:white;border:4px double black;box-sizing:border-box;width:794px;min-height:1120px;">
+                    <div style="border:1px solid black;margin:0 auto 8px auto;width:60%;padding:5px 0;text-align:center;font-size:14px;">
+                        İSTANBUL TOPKAPI ÜNİVERSİTESİ
+                    </div>
+                    <table class="pt" style="margin-bottom:4px;">
+                        <tr><td colspan="4" style="height:18px;"></td></tr>
+                        <tr>
+                            <th width="25%"><u>e</u>-İkamet<br>Başvuru No</th><td width="25%">${currentYear}-${vBasvuruNo.replace(new RegExp('^' + currentYear + '-'), '')}</td>
+                            <th width="25%">Öğrencinin Evraklarını<br>Ofise Teslim Tarihi</th><td width="25%">${vTeslim}</td>
+                        </tr>
+                        <tr>
+                            <th>Yabancı Kimlik<br>No</th><td>${vYabanciKimlik}</td>
+                            <th>Pasaport No</th><td>${vPasaportNo}</td>
+                        </tr>
+                        <tr>
+                            <th>Adı</th><td>${vAdi}</td>
+                            <th>Soyadı</th><td>${vSoyadi}</td>
+                        </tr>
+                        <tr>
+                            <th>Uyruğu</th><td>${vUyrugu}</td>
+                            <th>Doğum Tarihi</th><td>${vDogum}</td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td style="text-align:center;">Adres</td>
+                            <td style="text-align:center;">Tel No</td>
+                            <td style="text-align:center;">Mail</td>
+                        </tr>
+                        <tr>
+                            <th>Öğrencinin<br>İletişim Bilgisi</th>
+                            <td>${vAdres.toUpperCase().startsWith('İSTANBUL') ? '' : 'İSTANBUL, '}${vAdres}</td>
+                            <td>${vTel}</td>
+                            <td>xxxx</td>
+                        </tr>
+                    </table>
+                    <p style="text-align:justify;font-size:11.5px;margin:6px 0;line-height:1.3;text-indent:30px;">
+                        6458 sayılı Kanunun 38. maddesi çerçevesinde istenilen aşağıdaki belgelerin ekte sunulduğuna dair işbu tebliğ tebellüğ belgesi düzenlenerek altı imza altına alınmış, tebliğ belgesinin bir sureti tarafınıza verilmiş olup, bir sureti il göç idaresi müdürlüğüne gönderilecektir.
+                    </p>
+                    <p style="text-align:right;font-size:11.5px;margin-bottom:4px;">___ / ___ / 202_<br><u>(Tarih)</u>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>
+                    <p style="font-weight:bold;font-size:12px;margin:8px 0 4px 0;">BELGELER:</p>
+                    <ul style="list-style:none;padding:0 0 0 10px;margin:0;font-size:11.5px;line-height:1.4;">
+                        <li style="margin-bottom:2px;">☐ İkamet izni kayıt/başvuru formu (öğrenci tarafından ıslak imzalı şekilde)</li>
+                        <li style="margin-bottom:2px;">☐ Pasaport ya da pasaport yerine geçen belge (aslı görüldü şeklinde)</li>
+                        <li style="margin-bottom:2px;">☐ Öğrencilik durumunu gösterir belge</li>
+                        <li style="margin-bottom:2px;">☐ 4 adet biometrik fotoğraf</li>
+                        <li style="margin-bottom:2px;">☐ Geçerli sağlık sigortası (GSS ya da ikamet izni talep süresini kapsayan özel sağlık sigortası)</li>
+                        <li style="margin-bottom:2px;">☐ Kalacağı adres bilgilerini gösterir belge
+                            <ul style="list-style-type:disc;padding-left:20px;margin:2px 0;">
+                                <li>Kendi evinde kalıyorsa, tapu fotokopisi (uzatma başvurularında "yerleşim yeri belgesi ve fatura" yeterlidir)</li>
+                                <li>Kira sözleşmesi ile kalıyorsa, kira sözleşmesinin noter onaylı örneği</li>
+                                <li>Otel vb. konaklama yerlerinde kalınıyorsa, bu yerlerde kalındığına dair belge</li>
+                                <li>Öğrenci yurtlarında kalınıyorsa, yurtta kalındığına dair belge</li>
+                                <li>Destekleyici yanında kalınıyorsa, yanında kaldığı kişinin noter onaylı taahhüdü (Destekleyici evli ise ayrıca eşinin de noter onaylı taahhüdü)</li>
+                            </ul>
+                        </li>
+                        <li style="margin-bottom:2px;">☐ İkamet izni belge bedelinin ödendiğine dair makbuz</li>
+                        <li style="margin-bottom:2px;">☐ 18 yaşından küçük yabancılar için; vize muafiyetiyle ya da farklı amaca yönelik vizeyle gelenler için; veli/vasi bilgisini içeren belge (doğum belgesi, aile belgesi vb.) ve veli/vasi/yasal temsilcisi tarafından verilen muvafakatname (amacına uygun vizeyle ((öğrenim vizesi)) gelenler için; muvafakatname ve veli/vasi bilgisini içeren belge eklenmeyecektir.)</li>
+                    </ul>
+                    <div style="display:flex;justify-content:space-around;font-weight:bold;font-size:12px;margin-top:35px;">
+                        <div style="text-align:center;"><u>TEBLİĞ EDEN</u><br><br>Üniversite Personeli</div>
+                        <div style="text-align:center;"><u>TEBELLÜĞ EDEN</u><br><br>Yabancı Öğrenci</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(container);
 
             try {
-                const blob = await Packer.toBlob(doc);
-                const fName = vAdi.trim() ? vAdi.trim() : "Ad";
-                const fSurname = vSoyadi.trim() ? vSoyadi.trim() : "Soyad";
-                saveAs(blob, `ONBILGI_${fSurname}_${fName}.docx`);
-                showToast('Word belgesi başarıyla oluşturuldu.', 'success');
+                const canvas = await html2canvas(container.firstElementChild.lastElementChild, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false
+                });
+                document.body.removeChild(container);
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                const pdfW = pdf.internal.pageSize.getWidth();
+                const pdfH = pdf.internal.pageSize.getHeight();
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+
+                const fName = vAdi.trim() ? vAdi.trim() : 'Ad';
+                const fSurname = vSoyadi.trim() ? vSoyadi.trim() : 'Soyad';
+                pdf.save(`ONBILGI_${fSurname}_${fName}.pdf`);
+                showToast('PDF başarıyla oluşturuldu!', 'success');
             } catch (err) {
-                console.error('Word hatası:', err);
-                showToast('Word belgesi oluşturulurken bir hata oluştu: ' + err.message, 'error');
+                if (document.body.contains(container)) document.body.removeChild(container);
+                console.error('PDF hatası:', err);
+                showToast('PDF oluşturulurken hata: ' + err.message, 'error');
             }
         });
     }
-    // Print Button Logic
     if (btnPrint) {
         btnPrint.addEventListener('click', () => {
             // Get current values
