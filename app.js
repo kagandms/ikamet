@@ -1,4 +1,4 @@
-﻿// --- PWA Installation Logic ---
+// --- PWA Installation Logic ---
 let deferredPrompt;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -1576,7 +1576,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(container);
 
             try {
-                const canvas = await html2canvas(container.firstElementChild.lastElementChild, {
+                const canvas = await html2canvas(container.lastElementChild, {
                     scale: 2,
                     useCORS: true,
                     backgroundColor: '#ffffff',
