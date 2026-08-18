@@ -1514,25 +1514,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 right: { style: BorderStyle.NONE, size: 0 },
             };
 
-            // Helper: bold label cell
-            const labelCell = (text, widthPct) => new TableCell({
-                width: { size: widthPct, type: WidthType.PERCENTAGE },
+            // A4 sayfası: 210mm - (2 x 17.8mm kenar) = ~174mm içerik genişliği
+            // 174mm = ~9882 twip. Her sütun %25 = ~2470 twip
+            // Sabit DXA (twip) kullanarak mobil Word görüntüleyicilerle %100 uyumluluk sağlıyoruz
+            const COL_W = 2470; // twip cinsinden her sütunun genişliği
+            const TABLE_W = COL_W * 4; // toplam tablo genişliği
+
+            // Helper: bold label cell - DXA sabit genişlik
+            const labelCell = (text, w) => new TableCell({
+                width: { size: w || COL_W, type: WidthType.DXA },
                 borders: cellBorder,
                 verticalAlign: VerticalAlign.CENTER,
                 children: [new Paragraph({ children: [new TextRun({ text: text, bold: true, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
             });
 
-            // Helper: value cell
-            const valueCell = (text, widthPct) => new TableCell({
-                width: { size: widthPct, type: WidthType.PERCENTAGE },
+            // Helper: value cell - DXA sabit genişlik
+            const valueCell = (text, w) => new TableCell({
+                width: { size: w || COL_W, type: WidthType.DXA },
                 borders: cellBorder,
                 verticalAlign: VerticalAlign.CENTER,
                 children: [new Paragraph({ children: [new TextRun({ text: text, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
             });
 
-            // Helper: header cell (centered, not bold)
-            const headerCell = (text, widthPct) => new TableCell({
-                width: { size: widthPct, type: WidthType.PERCENTAGE },
+            // Helper: header cell (centered) - DXA sabit genişlik
+            const headerCell = (text, w) => new TableCell({
+                width: { size: w || COL_W, type: WidthType.DXA },
                 borders: cellBorder,
                 verticalAlign: VerticalAlign.CENTER,
                 children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: text, size: 22, font: "Times New Roman" })], spacing: { before: 40, after: 40 } })]
@@ -1587,54 +1593,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Info Table
                         new Table({
-                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            width: { size: TABLE_W, type: WidthType.DXA },
                             layout: TableLayoutType.FIXED,
                             rows: [
                                 // Spacer row
                                 new TableRow({
-                                    children: [new TableCell({ columnSpan: 4, width: { size: 100, type: WidthType.PERCENTAGE }, borders: cellBorder, children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [new TextRun(" ")] })] })]
+                                    children: [new TableCell({ columnSpan: 4, width: { size: TABLE_W, type: WidthType.DXA }, borders: cellBorder, children: [new Paragraph({ spacing: { before: 80, after: 80 }, children: [new TextRun(" ")] })] })]
                                 }),
                                 // Row: Başvuru No / Teslim Tarihi
                                 new TableRow({ children: [
-                                    labelCell("e-İkamet\nBaşvuru No", 25),
-                                    valueCell(currentYear + "-" + vBasvuruNo.replace(new RegExp('^' + currentYear + '-'), ''), 25),
-                                    labelCell("Öğrencinin Evraklarını\nOfise Teslim Tarihi", 25),
-                                    valueCell(vTeslim, 25),
+                                    labelCell("e-İkamet\nBaşvuru No"),
+                                    valueCell(currentYear + "-" + vBasvuruNo.replace(new RegExp('^' + currentYear + '-'), '')),
+                                    labelCell("Öğrencinin Evraklarını\nOfise Teslim Tarihi"),
+                                    valueCell(vTeslim),
                                 ]}),
                                 // Row: Yabancı Kimlik / Pasaport
                                 new TableRow({ children: [
-                                    labelCell("Yabancı Kimlik\nNo", 25),
-                                    valueCell(" ", 25),
-                                    labelCell("Pasaport No", 25),
-                                    valueCell(vPasaportNo, 25),
+                                    labelCell("Yabancı Kimlik\nNo"),
+                                    valueCell(" "),
+                                    labelCell("Pasaport No"),
+                                    valueCell(vPasaportNo),
                                 ]}),
                                 // Row: Adı / Soyadı
                                 new TableRow({ children: [
-                                    labelCell("Adı", 25),
-                                    valueCell(vAdi, 25),
-                                    labelCell("Soyadı", 25),
-                                    valueCell(vSoyadi, 25),
+                                    labelCell("Adı"),
+                                    valueCell(vAdi),
+                                    labelCell("Soyadı"),
+                                    valueCell(vSoyadi),
                                 ]}),
                                 // Row: Uyruğu / Doğum Tarihi
                                 new TableRow({ children: [
-                                    labelCell("Uyruğu", 25),
-                                    valueCell(vUyrugu, 25),
-                                    labelCell("Doğum Tarihi", 25),
-                                    valueCell(vDogum, 25),
+                                    labelCell("Uyruğu"),
+                                    valueCell(vUyrugu),
+                                    labelCell("Doğum Tarihi"),
+                                    valueCell(vDogum),
                                 ]}),
                                 // Row: Headers (Adres, Tel, Mail)
                                 new TableRow({ children: [
-                                    new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: cellBorder, children: [new Paragraph(" ")] }),
-                                    headerCell("Adres", 25),
-                                    headerCell("Tel No", 25),
-                                    headerCell("Mail", 25),
+                                    new TableCell({ width: { size: COL_W, type: WidthType.DXA }, borders: cellBorder, children: [new Paragraph(" ")] }),
+                                    headerCell("Adres"),
+                                    headerCell("Tel No"),
+                                    headerCell("Mail"),
                                 ]}),
                                 // Row: İletişim Bilgisi
                                 new TableRow({ children: [
-                                    labelCell("Öğrencinin\nİletişim Bilgisi", 25),
-                                    valueCell((vAdres.toUpperCase().startsWith('İSTANBUL') ? '' : 'İSTANBUL, ') + vAdres, 25),
-                                    valueCell(vTel, 25),
-                                    valueCell("xxxx", 25),
+                                    labelCell("Öğrencinin\nİletişim Bilgisi"),
+                                    valueCell((vAdres.toUpperCase().startsWith('İSTANBUL') ? '' : 'İSTANBUL, ') + vAdres),
+                                    valueCell(vTel),
+                                    valueCell("xxxx"),
                                 ]}),
                             ]
                         }),
@@ -1689,22 +1695,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Signature table (borderless)
                         new Table({
-                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            width: { size: TABLE_W, type: WidthType.DXA },
                             layout: TableLayoutType.FIXED,
                             rows: [
                                 new TableRow({ children: [
-                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
                                         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [new TextRun({ text: "TEBLİĞ EDEN", bold: true, underline: {}, size: 22 })] })
                                     ]}),
-                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
                                         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600 }, children: [new TextRun({ text: "TEBELLÜĞ EDEN", bold: true, underline: {}, size: 22 })] })
                                     ]}),
                                 ]}),
                                 new TableRow({ children: [
-                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
                                         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "Üniversite Personeli", size: 22 })] })
                                     ]}),
-                                    new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, borders: noBorder, children: [
+                                    new TableCell({ width: { size: COL_W * 2, type: WidthType.DXA }, borders: noBorder, children: [
                                         new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "Yabancı Öğrenci", size: 22 })] })
                                     ]}),
                                 ]}),
